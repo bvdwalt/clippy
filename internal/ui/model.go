@@ -6,10 +6,11 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/bvdwalt/clippy/internal/history"
-	"github.com/charmbracelet/bubbles/table"
+	"github.com/bvdwalt/clippy/internal/search"
+	"github.com/bvdwalt/clippy/internal/ui/styles"
+	"github.com/bvdwalt/clippy/internal/ui/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // ViewMode represents the current view mode
@@ -23,72 +24,35 @@ const (
 // Model represents the UI state
 type Model struct {
 	historyManager *history.Manager
-	table          table.Model
+	tableManager   *table.Manager
 	textInput      textinput.Model
+	fuzzyMatcher   *search.FuzzyMatcher
+	theme          styles.Theme
 	mode           ViewMode
 	filtered       []history.ClipboardHistory
 	height         int
 	width          int
 }
 
-// Styles for the enhanced UI
-var (
-	docStyle = lipgloss.NewStyle().Margin(1, 2)
-
-	titleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("205")).
-			Bold(true).
-			Padding(0, 1)
-
-	helpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241")).
-			Margin(1, 0)
-
-	searchStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("62")).
-			Padding(1).
-			Width(50)
-)
-
 // NewModel creates a new UI model
 func NewModel(historyManager *history.Manager) Model {
-	// Initialize text input for search
 	ti := textinput.New()
 	ti.Placeholder = "Search clipboard history..."
 	ti.Focus()
 	ti.CharLimit = 50
 	ti.Width = 50
 
-	// Initialize table
-	columns := []table.Column{
-		{Title: "#", Width: 4},
-		{Title: "Content", Width: 60},
-		{Title: "Time", Width: 19},
-	}
-
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithFocused(true),
-		table.WithHeight(10),
-	)
-
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(false)
-	t.SetStyles(s)
+	theme := styles.DefaultTheme()
+	tableTheme := styles.DefaultTableTheme()
+	tableManager := table.NewManager(tableTheme)
+	fuzzyMatcher := search.NewFuzzyMatcher()
 
 	m := Model{
 		historyManager: historyManager,
-		table:          t,
+		tableManager:   tableManager,
 		textInput:      ti,
+		fuzzyMatcher:   fuzzyMatcher,
+		theme:          theme,
 		mode:           TableView,
 	}
 
@@ -99,29 +63,7 @@ func NewModel(historyManager *history.Manager) Model {
 // updateTable refreshes the table with current (filtered) history items
 func (m *Model) updateTable() {
 	items := m.getDisplayItems()
-
-	rows := make([]table.Row, len(items))
-	for i, item := range items {
-		content := item.Item
-		// First, replace whitespace characters (\r\n should become single space)
-		content = strings.ReplaceAll(content, "\r\n", " ")
-		content = strings.ReplaceAll(content, "\n", " ")
-		content = strings.ReplaceAll(content, "\r", " ")
-		content = strings.ReplaceAll(content, "\t", " ")
-
-		// Then truncate if needed (table column width is 60)
-		if len(content) > 60 {
-			content = content[:57] + "..."
-		}
-
-		rows[i] = table.Row{
-			fmt.Sprintf("%d", i+1),
-			content,
-			item.TimeStamp.Format("2006-01-02 15:04:05"),
-		}
-	}
-
-	m.table.SetRows(rows)
+	m.tableManager.UpdateRows(items)
 }
 
 // getDisplayItems returns the items to display (filtered or all)
@@ -132,22 +74,25 @@ func (m *Model) getDisplayItems() []history.ClipboardHistory {
 	return m.historyManager.GetItems()
 }
 
-// filterItems filters history items based on search query
+// filterItems filters history items using fuzzy finding (like fzf)
 func (m *Model) filterItems(query string) {
 	if query == "" {
 		m.filtered = nil
 		return
 	}
 
-	query = strings.ToLower(query)
 	allItems := m.historyManager.GetItems()
-	m.filtered = make([]history.ClipboardHistory, 0)
+	m.filtered = m.fuzzyMatcher.Search(allItems, query)
+}
 
-	for _, item := range allItems {
-		if strings.Contains(strings.ToLower(item.Item), query) {
-			m.filtered = append(m.filtered, item)
-		}
-	}
+// isLower checks if a rune is lowercase
+func isLower(r rune) bool {
+	return r >= 'a' && r <= 'z'
+}
+
+// isUpper checks if a rune is uppercase
+func isUpper(r rune) bool {
+	return r >= 'A' && r <= 'Z'
 }
 
 // Init initializes the model
@@ -209,7 +154,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Copy selected item
 				items := m.getDisplayItems()
 				if len(items) > 0 {
-					selectedRow := m.table.Cursor()
+					selectedRow := m.tableManager.GetCursor()
 					if selectedRow < len(items) {
 						clipboard.WriteAll(items[selectedRow].Item)
 					}
@@ -218,7 +163,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Delete selected item
 				items := m.getDisplayItems()
 				if len(items) > 0 {
-					selectedRow := m.table.Cursor()
+					selectedRow := m.tableManager.GetCursor()
 					if selectedRow < len(items) {
 						// Find the original index in history manager
 						itemToDelete := items[selectedRow]
@@ -241,7 +186,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateTable()
 			default:
 				// Handle table navigation
-				m.table, cmd = m.table.Update(msg)
+				table := m.tableManager.GetTable()
+				table, cmd = table.Update(msg)
+				m.tableManager.SetTable(table)
 			}
 		}
 
@@ -259,8 +206,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 
 		// Update table size
-		m.table.SetWidth(msg.Width - 4)
-		m.table.SetHeight(msg.Height - 8)
+		m.tableManager.SetSize(msg.Width, msg.Height)
 	}
 
 	return m, cmd
@@ -271,17 +217,17 @@ func (m Model) View() string {
 	var content strings.Builder
 
 	// Title
-	title := titleStyle.Render("📋 Clippy Clipboard History")
+	title := m.theme.Title.Render("📋 Clippy Clipboard History")
 	content.WriteString(title + "\n\n")
 
 	// Search mode UI
 	if m.mode == SearchView {
-		searchBox := searchStyle.Render(
+		searchBox := m.theme.Search.Render(
 			fmt.Sprintf("🔍 Search:\n\n%s\n\n%s",
 				m.textInput.View(),
-				helpStyle.Render("Press Enter to search, Esc to cancel")))
+				m.theme.Help.Render("Press Enter to search, Esc to cancel")))
 		content.WriteString(searchBox + "\n")
-		return docStyle.Render(content.String())
+		return m.theme.Doc.Render(content.String())
 	}
 
 	// Table view
@@ -293,7 +239,7 @@ func (m Model) View() string {
 			content.WriteString("No clipboard history yet...\n")
 		}
 	} else {
-		content.WriteString(m.table.View() + "\n")
+		content.WriteString(m.tableManager.View() + "\n")
 	}
 
 	// Status and help
@@ -310,20 +256,19 @@ func (m Model) View() string {
 	}
 
 	content.WriteString("\n" + status + "\n")
-	content.WriteString(helpStyle.Render(help))
+	content.WriteString(m.theme.Help.Render(help))
 
-	return docStyle.Render(content.String())
+	return m.theme.Doc.Render(content.String())
 }
 
 // GetCursor returns the current cursor position for testing
 func (m Model) GetCursor() int {
-	return m.table.Cursor()
+	return m.tableManager.GetCursor()
 }
 
 // SetCursor sets the cursor position for testing
 func (m *Model) SetCursor(pos int) {
-	// We'll need to simulate key presses to move the cursor
-	// For now, this is a placeholder for test compatibility
+	// Placeholder for test compatibility
 }
 
 // UpdateTable is a public wrapper for updateTable for testing purposes

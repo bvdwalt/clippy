@@ -153,7 +153,7 @@ func TestModelView(t *testing.T) {
 
 	// Check that view contains expected elements (table format)
 	expectedContents := []string{
-		"📋 Clipboard History",
+		"📋 Clippy Clipboard History",
 		"first item",
 		"second item",
 		"Total items: 2",
