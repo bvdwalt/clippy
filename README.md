@@ -1,6 +1,6 @@
 # Clippy
 
-A lightweight terminal-based clipboard history manager for Linux, built with Go and the Bubble Tea TUI framework.
+A lightweight terminal-based clipboard history manager, built with Go and the Bubble Tea TUI framework.
 
 ## Features
 
@@ -16,6 +16,7 @@ A lightweight terminal-based clipboard history manager for Linux, built with Go 
 ### Prerequisites
 
 - Go 1.20 or later
+- MacOS
 - Linux with X11 or Wayland (uses `xclip` or `wl-clipboard`)
 
 ### Install from source
