@@ -557,12 +557,19 @@ func TestMainFunctionComponents(t *testing.T) {
 		// Create UI model
 		model := ui.NewModel(historyManager)
 
-		// Test that the view renders correctly
+		// Test that the view renders correctly with table format
+		model.UpdateTable() // Update table with new items
 		view := model.View()
-		for i := range testItems {
-			expectedDisplay := fmt.Sprintf("%d:", i+1)
-			if !strings.Contains(view, expectedDisplay) {
+		for i, item := range testItems {
+			// Check for the item number in table format
+			expectedNumber := fmt.Sprintf("%d", i+1)
+			if !strings.Contains(view, expectedNumber) {
 				t.Errorf("Expected view to contain item number %d", i+1)
+			}
+			// Check for content (newlines are converted to spaces in table view)
+			expectedContent := strings.ReplaceAll(item, "\n", " ")
+			if !strings.Contains(view, expectedContent) {
+				t.Errorf("Expected view to contain transformed item content: %s", expectedContent)
 			}
 		}
 

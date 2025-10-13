@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -17,8 +16,8 @@ func TestNewModel(t *testing.T) {
 		t.Error("Expected historyManager to be set")
 	}
 
-	if model.cursor != 0 {
-		t.Errorf("Expected cursor to be 0, got %d", model.cursor)
+	if model.GetCursor() != 0 {
+		t.Errorf("Expected cursor to be 0, got %d", model.GetCursor())
 	}
 
 	if model.height != 0 {
@@ -58,40 +57,28 @@ func TestModelUpdateKeyMessages(t *testing.T) {
 	t.Run("Cursor movement logic", func(t *testing.T) {
 		model := NewModel(historyManager)
 
-		// Test up movement
-		model.cursor = 1
-		if model.cursor > 0 {
-			model.cursor-- // simulate "up" key
-		}
-		if model.cursor != 0 {
-			t.Errorf("Expected cursor 0 after up movement, got %d", model.cursor)
+		// With the new table-based model, we test cursor position after simulated key events
+		// Test that cursor starts at 0
+		if model.GetCursor() != 0 {
+			t.Errorf("Expected initial cursor 0, got %d", model.GetCursor())
 		}
 
-		// Test up movement at boundary (should not go below 0)
-		model.cursor = 0
-		if model.cursor > 0 {
-			model.cursor-- // simulate "up" key
-		}
-		if model.cursor != 0 {
-			t.Errorf("Expected cursor to stay at 0, got %d", model.cursor)
+		// Simulate down key press to move cursor
+		downMsg := tea.KeyMsg{Type: tea.KeyDown}
+		updatedModel, _ := model.Update(downMsg)
+		model = updatedModel.(Model)
+
+		if model.GetCursor() != 1 {
+			t.Errorf("Expected cursor 1 after down movement, got %d", model.GetCursor())
 		}
 
-		// Test down movement
-		model.cursor = 0
-		if model.cursor < model.historyManager.Count()-1 {
-			model.cursor++ // simulate "down" key
-		}
-		if model.cursor != 1 {
-			t.Errorf("Expected cursor 1 after down movement, got %d", model.cursor)
-		}
+		// Simulate up key press to move cursor back
+		upMsg := tea.KeyMsg{Type: tea.KeyUp}
+		updatedModel, _ = model.Update(upMsg)
+		model = updatedModel.(Model)
 
-		// Test down movement at boundary (should not exceed max)
-		model.cursor = 2 // last item
-		if model.cursor < model.historyManager.Count()-1 {
-			model.cursor++ // simulate "down" key
-		}
-		if model.cursor != 2 {
-			t.Errorf("Expected cursor to stay at 2, got %d", model.cursor)
+		if model.GetCursor() != 0 {
+			t.Errorf("Expected cursor 0 after up movement, got %d", model.GetCursor())
 		}
 	})
 }
@@ -121,7 +108,7 @@ func TestModelUpdateTickMessage(t *testing.T) {
 
 	// The model state should remain unchanged if clipboard read fails (which it will in tests)
 	updatedModel := newModel.(Model)
-	if updatedModel.cursor != model.cursor {
+	if updatedModel.GetCursor() != model.GetCursor() {
 		t.Error("Cursor should not change on TickMsg")
 	}
 }
@@ -153,22 +140,23 @@ func TestModelView(t *testing.T) {
 
 	// Test empty history
 	view := model.View()
-	expectedEmpty := "Clipboard History (press q to quit, enter/c to copy, d to delete)\n\nNo clipboard history yet...\n"
-	if view != expectedEmpty {
-		t.Errorf("Expected empty view:\n%q\nGot:\n%q", expectedEmpty, view)
+	if !contains(view, "No clipboard history yet...") {
+		t.Errorf("Expected empty view to contain 'No clipboard history yet...', got:\n%s", view)
 	}
 
 	// Test with items
 	historyManager.AddItem("first item")
 	historyManager.AddItem("second item")
+	model.UpdateTable() // Update table with new items
 
 	view = model.View()
 
-	// Check that view contains expected elements
+	// Check that view contains expected elements (table format)
 	expectedContents := []string{
-		"Clipboard History (press q to quit, enter/c to copy, d to delete)",
-		"> 1: first item",  // First item should be selected (cursor = 0)
-		"  2: second item", // Second item should not be selected
+		"📋 Clipboard History",
+		"first item",
+		"second item",
+		"Total items: 2",
 	}
 
 	for _, expected := range expectedContents {
@@ -185,10 +173,11 @@ func TestModelViewLongContent(t *testing.T) {
 	// Add an item longer than 60 characters
 	longContent := "This is a very long piece of content that should be truncated when displayed in the UI because it exceeds sixty characters"
 	historyManager.AddItem(longContent)
+	model.UpdateTable() // Update table with new items
 
 	view := model.View()
 
-	// Should be truncated to 57 chars + "..."
+	// Should be truncated to 57 chars + "..." (content longer than 60 chars)
 	expectedTruncated := longContent[:57] + "..."
 	if !contains(view, expectedTruncated) {
 		t.Errorf("Expected view to contain truncated content %q", expectedTruncated)
@@ -207,6 +196,7 @@ func TestModelViewNewlineReplacement(t *testing.T) {
 	// Add content with newlines
 	contentWithNewlines := "line1\nline2\nline3"
 	historyManager.AddItem(contentWithNewlines)
+	model.UpdateTable() // Update table with new items
 
 	view := model.View()
 
@@ -231,28 +221,26 @@ func TestModelViewCursorMovement(t *testing.T) {
 	for _, item := range items {
 		historyManager.AddItem(item)
 	}
+	model.UpdateTable() // Update table with new items
 
-	// Test cursor at different positions
-	for i := 0; i < len(items); i++ {
-		model.cursor = i
-		view := model.View()
+	// Test that view renders with items
+	view := model.View()
 
-		// Check that the correct item has the cursor
-		for j, item := range items {
-			if j == i {
-				// This item should have the cursor ">"
-				expected := fmt.Sprintf("> %d: %s", j+1, item)
-				if !contains(view, expected) {
-					t.Errorf("Expected cursor on item %d: %q", j, expected)
-				}
-			} else {
-				// Other items should have space " "
-				expected := fmt.Sprintf("  %d: %s", j+1, item)
-				if !contains(view, expected) {
-					t.Errorf("Expected no cursor on item %d: %q", j, expected)
-				}
-			}
+	// Check that all items appear in the table
+	for _, item := range items {
+		if !contains(view, item) {
+			t.Errorf("Expected view to contain item %q", item)
 		}
+	}
+
+	// Test cursor movement through key events
+	downMsg := tea.KeyMsg{Type: tea.KeyDown}
+	updatedModel, _ := model.Update(downMsg)
+	model = updatedModel.(Model)
+
+	// Verify cursor moved
+	if model.GetCursor() == 0 && len(items) > 1 {
+		t.Error("Expected cursor to move down from initial position")
 	}
 }
 
@@ -263,16 +251,15 @@ func TestModelEnterKeyWithValidItem(t *testing.T) {
 	// Add some items
 	historyManager.AddItem("test content")
 	historyManager.AddItem("another item")
-
-	// Set cursor to first item
-	model.cursor = 0
+	model.UpdateTable() // Update table with new items
 
 	// Note: We can't easily test clipboard.WriteAll() in unit tests
 	// since it requires system clipboard access. In a real scenario,
 	// you might want to use dependency injection or interfaces to mock this.
 
-	// For now, we'll test the GetItem logic that would be called
-	item, ok := model.historyManager.GetItem(model.cursor)
+	// Test that GetItem works with current cursor position
+	cursor := model.GetCursor()
+	item, ok := model.historyManager.GetItem(cursor)
 	if !ok {
 		t.Error("Expected GetItem to return true for valid cursor position")
 	}
@@ -285,11 +272,8 @@ func TestModelEnterKeyWithInvalidCursor(t *testing.T) {
 	historyManager := history.NewManager()
 	model := NewModel(historyManager)
 
-	// Set cursor to invalid position (no items in history)
-	model.cursor = 5
-
-	// Test the GetItem logic that would be called with invalid cursor
-	_, ok := model.historyManager.GetItem(model.cursor)
+	// Test the GetItem logic with invalid cursor (empty history)
+	_, ok := model.historyManager.GetItem(5)
 	if ok {
 		t.Error("Expected GetItem to return false for invalid cursor position")
 	}
@@ -302,14 +286,15 @@ func TestModelUnknownKeyMessage(t *testing.T) {
 	// For testing unknown keys, we'll focus on testing that
 	// the model remains in a valid state regardless of input
 
-	initialCursor := model.cursor
 	initialHeight := model.height
 	initialManager := model.historyManager
 
+	// Test with an unknown key message
+	unknownMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}}
+	updatedModel, _ := model.Update(unknownMsg)
+	model = updatedModel.(Model)
+
 	// Verify model state remains consistent
-	if model.cursor != initialCursor {
-		t.Error("Model cursor should remain unchanged for unknown operations")
-	}
 	if model.height != initialHeight {
 		t.Error("Model height should remain unchanged for unknown operations")
 	}

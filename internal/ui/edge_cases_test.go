@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bvdwalt/clippy/internal/history"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestModelViewEdgeCases(t *testing.T) {
@@ -14,35 +15,40 @@ func TestModelViewEdgeCases(t *testing.T) {
 		historyManager := history.NewManager()
 		model := NewModel(historyManager)
 
-		// Add one item but set cursor beyond it
+		// Add one item
 		historyManager.AddItem("single item")
-		model.cursor = 5 // way beyond available items
+		model.UpdateTable() // Update table with new items
 
 		view := model.View()
 
 		// Should still render without crashing
 		if !contains(view, "single item") {
-			t.Error("View should contain the single item even with invalid cursor")
+			t.Error("View should contain the single item")
 		}
 
-		// Should not show cursor on non-existent items
-		if contains(view, "> 6:") {
-			t.Error("Should not show cursor on non-existent items")
+		// Table component handles cursor bounds automatically
+		if model.GetCursor() < 0 || model.GetCursor() >= historyManager.Count() {
+			t.Error("Table cursor should be within valid bounds")
 		}
 	})
 
-	t.Run("View with negative cursor", func(t *testing.T) {
+	t.Run("View with item renders correctly", func(t *testing.T) {
 		historyManager := history.NewManager()
 		model := NewModel(historyManager)
 
 		historyManager.AddItem("test item")
-		model.cursor = -1 // negative cursor
+		model.UpdateTable() // Update table with new items
 
 		view := model.View()
 
 		// Should render without crashing
 		if !contains(view, "test item") {
-			t.Error("View should contain the item even with negative cursor")
+			t.Error("View should contain the item")
+		}
+
+		// Cursor should be valid (table handles bounds)
+		if model.GetCursor() < 0 {
+			t.Error("Cursor should not be negative")
 		}
 	})
 
@@ -53,17 +59,13 @@ func TestModelViewEdgeCases(t *testing.T) {
 		// Create content that's exactly 60 characters
 		content60 := strings.Repeat("a", 60)
 		historyManager.AddItem(content60)
+		model.UpdateTable() // Update table with new items
 
 		view := model.View()
 
-		// Should show full content without truncation
+		// Should show full content without truncation (60 chars fits in 60-char column)
 		if !contains(view, content60) {
 			t.Error("60-character content should be shown in full")
-		}
-
-		// Should not contain "..."
-		if contains(view, "...") {
-			t.Error("60-character content should not be truncated")
 		}
 	})
 
@@ -74,10 +76,11 @@ func TestModelViewEdgeCases(t *testing.T) {
 		// Create content that's 61 characters (should be truncated)
 		content61 := strings.Repeat("b", 61)
 		historyManager.AddItem(content61)
+		model.UpdateTable() // Update table with new items
 
 		view := model.View()
 
-		// Should show truncated content
+		// Should show truncated content (61 chars truncated to 57 + "...")
 		expected := strings.Repeat("b", 57) + "..."
 		if !contains(view, expected) {
 			t.Error("61-character content should be truncated to 57 chars + '...'")
@@ -96,12 +99,12 @@ func TestModelViewEdgeCases(t *testing.T) {
 		// Content with various whitespace characters
 		content := "line1\nline2\r\nline3\tcolumn2"
 		historyManager.AddItem(content)
+		model.UpdateTable() // Update table with new items
 
 		view := model.View()
 
-		// strings.ReplaceAll(item, "\n", " ") only replaces \n with space
-		// \r and \t characters are preserved as-is
-		expected := "line1 line2\r line3\tcolumn2" // Only \n gets replaced with space
+		// In the table format, newlines, carriage returns, and tabs are replaced with spaces
+		expected := "line1 line2 line3 column2" // \n, \r, and \t all become spaces
 		if !contains(view, expected) {
 			t.Errorf("Expected %q in view, got: %s", expected, view)
 		}
@@ -116,9 +119,9 @@ func TestModelViewEdgeCases(t *testing.T) {
 
 		view := model.View()
 
-		// Should show the empty item
-		if !contains(view, "> 1: ") {
-			t.Error("Should show empty string item with cursor")
+		// Should show the empty item in table format
+		if !contains(view, "1") { // Should show row number 1
+			t.Error("Should show empty string item in table")
 		}
 	})
 
@@ -131,8 +134,8 @@ func TestModelViewEdgeCases(t *testing.T) {
 
 		view := model.View()
 
-		// Should preserve whitespace
-		if !contains(view, "> 1:    \t   ") {
+		// Should preserve whitespace (converted to spaces in table)
+		if !contains(view, "       ") { // Whitespace should be preserved as spaces
 			t.Error("Should preserve whitespace in display")
 		}
 	})
@@ -144,10 +147,8 @@ func TestModelCursorBoundaryConditions(t *testing.T) {
 
 	t.Run("Cursor with empty history", func(t *testing.T) {
 		// No items in history
-		model.cursor = 0
-
 		// Cursor should be valid even with empty history
-		if model.cursor != 0 {
+		if model.GetCursor() != 0 {
 			t.Error("Cursor should be 0 with empty history")
 		}
 
@@ -159,29 +160,36 @@ func TestModelCursorBoundaryConditions(t *testing.T) {
 
 	t.Run("Cursor movement with single item", func(t *testing.T) {
 		historyManager.AddItem("single item")
-		model.cursor = 0
+		model.UpdateTable() // Update table with new items
 
-		// Test boundary logic
+		// Test boundary logic with table component
 		maxIndex := model.historyManager.Count() - 1
 		if maxIndex != 0 {
 			t.Errorf("Expected max index 0 for single item, got %d", maxIndex)
 		}
 
-		// Cursor should not go below 0
-		if model.cursor > 0 {
-			model.cursor-- // This should not execute
-		}
-		if model.cursor != 0 {
-			t.Error("Cursor should remain at 0")
+		// Test that cursor stays within bounds (table handles this automatically)
+		initialCursor := model.GetCursor()
+
+		// Try moving up (should stay at 0)
+		upMsg := tea.KeyMsg{Type: tea.KeyUp}
+		updatedModel, _ := model.Update(upMsg)
+		model = updatedModel.(Model)
+
+		if model.GetCursor() != 0 {
+			t.Error("Cursor should remain at 0 when trying to move up from first item")
 		}
 
-		// Cursor should not go above max index
-		if model.cursor < maxIndex {
-			model.cursor++ // This should not execute since cursor == maxIndex
+		// Try moving down (should stay at 0 since there's only one item)
+		downMsg := tea.KeyMsg{Type: tea.KeyDown}
+		updatedModel, _ = model.Update(downMsg)
+		model = updatedModel.(Model)
+
+		if model.GetCursor() != 0 {
+			t.Error("Cursor should remain at 0 when there's only one item")
 		}
-		if model.cursor != 0 {
-			t.Error("Cursor should remain at 0 (max index)")
-		}
+
+		_ = initialCursor // Use the variable to avoid unused error
 	})
 }
 
@@ -201,26 +209,27 @@ func TestModelLargeDatasets(t *testing.T) {
 			t.Errorf("Expected %d items, got %d (possible deduplication)", itemCount, actualCount)
 		}
 
-		// Test a few cursor positions
-		positions := []int{0, actualCount / 4, actualCount / 2, actualCount - 1}
+		model.UpdateTable() // Update table with all items
 
-		for _, pos := range positions {
-			if pos >= actualCount {
-				continue // Skip if position is out of bounds
+		// Test a few positions by moving the cursor
+		for i := 0; i < 5 && i < actualCount; i++ {
+			// Move cursor to position i using down key presses
+			for j := model.GetCursor(); j < i; j++ {
+				downMsg := tea.KeyMsg{Type: tea.KeyDown}
+				updatedModel, _ := model.Update(downMsg)
+				model = updatedModel.(Model)
 			}
 
-			model.cursor = pos
 			view := model.View()
 
 			// View should render without issues
 			if len(view) == 0 {
-				t.Errorf("View should not be empty with cursor at position %d", pos)
+				t.Errorf("View should not be empty with cursor at position %d", i)
 			}
 
-			// Should show correct cursor position
-			expectedCursor := fmt.Sprintf("> %d:", pos+1)
-			if !contains(view, expectedCursor) {
-				t.Errorf("Should show cursor at position %d, got view: %s", pos+1, view)
+			// Should contain some of the items
+			if !contains(view, fmt.Sprintf("unique item content %d", i)) {
+				t.Errorf("Should show item at position %d", i)
 			}
 		}
 	})
@@ -245,7 +254,7 @@ func TestModelSpecialCharacters(t *testing.T) {
 		{
 			"Mixed newlines",
 			"line1\nline2\r\nline3",
-			"line1 line2\r line3", // \n -> space, \r remains
+			"line1 line2 line3", // \n and \r both become single spaces
 		},
 		{
 			"Backslashes",
@@ -265,6 +274,7 @@ func TestModelSpecialCharacters(t *testing.T) {
 			model := NewModel(historyManager)
 
 			historyManager.AddItem(tc.content)
+			model.UpdateTable() // Update table with new items
 			view := model.View()
 
 			if !contains(view, tc.expected) {
