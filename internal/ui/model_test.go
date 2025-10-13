@@ -153,7 +153,7 @@ func TestModelView(t *testing.T) {
 
 	// Test empty history
 	view := model.View()
-	expectedEmpty := "Clipboard History (press q to quit, enter to copy)\n\nNo clipboard history yet...\n"
+	expectedEmpty := "Clipboard History (press q to quit, enter/c to copy, d to delete)\n\nNo clipboard history yet...\n"
 	if view != expectedEmpty {
 		t.Errorf("Expected empty view:\n%q\nGot:\n%q", expectedEmpty, view)
 	}
@@ -166,7 +166,7 @@ func TestModelView(t *testing.T) {
 
 	// Check that view contains expected elements
 	expectedContents := []string{
-		"Clipboard History (press q to quit, enter to copy)",
+		"Clipboard History (press q to quit, enter/c to copy, d to delete)",
 		"> 1: first item",  // First item should be selected (cursor = 0)
 		"  2: second item", // Second item should not be selected
 	}
