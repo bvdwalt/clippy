@@ -12,8 +12,9 @@ const HistoryFileName = "history.json"
 
 // Manager handles clipboard history storage and management
 type Manager struct {
-	items  []ClipboardHistory
-	hashes map[string]struct{}
+	items    []ClipboardHistory
+	hashes   map[string]struct{}
+	lastHash string
 }
 
 // NewManager creates a new history manager
@@ -27,12 +28,18 @@ func NewManager() *Manager {
 // AddItem adds a new clipboard item if it doesn't already exist
 func (m *Manager) AddItem(content string) bool {
 	item := newClipboardItem(content)
-	if _, exists := m.hashes[item.Hash]; !exists {
+	if !m.containsHash(item.Hash) {
 		m.items = append(m.items, item)
+		m.lastHash = item.Hash
 		m.hashes[item.Hash] = struct{}{}
 		return true
 	}
 	return false
+}
+
+func (m *Manager) containsHash(s string) bool {
+	_, contains := m.hashes[s]
+	return contains || m.lastHash == s
 }
 
 // GetItems returns all clipboard history items
@@ -46,6 +53,17 @@ func (m *Manager) GetItem(index int) (ClipboardHistory, bool) {
 		return m.items[index], true
 	}
 	return ClipboardHistory{}, false
+}
+
+// DeleteItem attempts to delete an item by index and returns the removal status
+func (m *Manager) DeleteItem(index int) bool {
+	if index >= 0 && index < len(m.items) {
+		item := m.items[index]
+		delete(m.hashes, item.Hash)
+		m.items = append(m.items[:index], m.items[index+1:]...)
+		return true
+	}
+	return false
 }
 
 // Count returns the number of items in history
@@ -73,6 +91,7 @@ func (m *Manager) LoadFromFile() error {
 	m.hashes = make(map[string]struct{})
 	for _, item := range items {
 		m.hashes[item.Hash] = struct{}{}
+		m.lastHash = item.Hash
 	}
 
 	return nil

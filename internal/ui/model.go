@@ -47,9 +47,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < m.historyManager.Count()-1 {
 				m.cursor++
 			}
-		case "enter":
+		case "enter", "c":
 			if item, ok := m.historyManager.GetItem(m.cursor); ok {
 				clipboard.WriteAll(item.Item)
+			}
+		case "d":
+			if m.historyManager.DeleteItem(m.cursor) {
+				if m.cursor >= m.historyManager.Count() && m.cursor > 0 {
+					m.cursor--
+				}
 			}
 		}
 	case TickMsg:
@@ -67,7 +73,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the UI
 func (m Model) View() string {
-	s := "Clipboard History (press q to quit, enter to copy)\n\n"
+	s := "Clipboard History (press q to quit, enter/c to copy, d to delete)\n\n"
 
 	items := m.historyManager.GetItems()
 	if len(items) == 0 {
