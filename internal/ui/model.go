@@ -271,7 +271,7 @@ func (m Model) View() string {
 	var content strings.Builder
 
 	// Title
-	title := titleStyle.Render("📋 Clipboard History")
+	title := titleStyle.Render("📋 Clippy Clipboard History")
 	content.WriteString(title + "\n\n")
 
 	// Search mode UI
@@ -304,7 +304,7 @@ func (m Model) View() string {
 		status = fmt.Sprintf("Total items: %d", len(items))
 	}
 
-	help := "Keys: ↑/↓ navigate • Enter/c copy • d delete • / search • r refresh • q quit"
+	help := "Keys: ↑/k ↓/j navigate • Enter/c copy • d delete • / search • r refresh • q quit"
 	if m.filtered != nil {
 		help += " • esc clear search"
 	}
