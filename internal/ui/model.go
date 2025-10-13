@@ -126,7 +126,7 @@ func (m *Model) updateTable() {
 
 // getDisplayItems returns the items to display (filtered or all)
 func (m *Model) getDisplayItems() []history.ClipboardHistory {
-	if m.mode == SearchView && len(m.filtered) > 0 {
+	if m.filtered != nil {
 		return m.filtered
 	}
 	return m.historyManager.GetItems()
