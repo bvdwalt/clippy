@@ -9,7 +9,7 @@ import (
 
 func BenchmarkNewModel(b *testing.B) {
 	historyManager := history.NewManager()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		NewModel(historyManager)
@@ -19,12 +19,12 @@ func BenchmarkNewModel(b *testing.B) {
 func BenchmarkModelView(b *testing.B) {
 	historyManager := history.NewManager()
 	model := NewModel(historyManager)
-	
+
 	// Add some items for benchmarking
 	for i := 0; i < 100; i++ {
 		historyManager.AddItem(generateTestContent(i))
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		model.View()
@@ -34,12 +34,12 @@ func BenchmarkModelView(b *testing.B) {
 func BenchmarkModelViewLargeHistory(b *testing.B) {
 	historyManager := history.NewManager()
 	model := NewModel(historyManager)
-	
+
 	// Add many items to test performance with large history
 	for i := 0; i < 1000; i++ {
 		historyManager.AddItem(generateTestContent(i))
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		model.View()
@@ -49,13 +49,13 @@ func BenchmarkModelViewLargeHistory(b *testing.B) {
 func BenchmarkModelViewLongContent(b *testing.B) {
 	historyManager := history.NewManager()
 	model := NewModel(historyManager)
-	
+
 	// Add items with very long content
 	longContent := strings.Repeat("This is a very long piece of content that exceeds the display limit. ", 20)
 	for i := 0; i < 50; i++ {
 		historyManager.AddItem(longContent + generateTestContent(i))
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		model.View()

@@ -11,7 +11,7 @@ import (
 
 func BenchmarkFuzzyMatcher_Search(b *testing.B) {
 	matcher := NewFuzzyMatcher()
-	
+
 	// Create test data with various sizes
 	benchmarks := []struct {
 		name  string
@@ -27,7 +27,7 @@ func BenchmarkFuzzyMatcher_Search(b *testing.B) {
 		b.Run(bm.name, func(b *testing.B) {
 			items := generateTestItems(bm.items)
 			query := "test"
-			
+
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				_ = matcher.Search(items, query)
@@ -39,7 +39,7 @@ func BenchmarkFuzzyMatcher_Search(b *testing.B) {
 func BenchmarkFuzzyMatcher_Search_QueryLength(b *testing.B) {
 	matcher := NewFuzzyMatcher()
 	items := generateTestItems(1000)
-	
+
 	queries := []struct {
 		name  string
 		query string
@@ -63,7 +63,7 @@ func BenchmarkFuzzyMatcher_Search_QueryLength(b *testing.B) {
 
 func BenchmarkFuzzyMatcher_Search_MatchRatio(b *testing.B) {
 	matcher := NewFuzzyMatcher()
-	
+
 	// Create datasets with different match ratios
 	benchmarks := []struct {
 		name       string
@@ -79,7 +79,7 @@ func BenchmarkFuzzyMatcher_Search_MatchRatio(b *testing.B) {
 		b.Run(bm.name, func(b *testing.B) {
 			items := generateTestItemsWithMatchRatio(1000, "test", bm.matchRatio)
 			query := "test"
-			
+
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				_ = matcher.Search(items, query)
@@ -90,7 +90,7 @@ func BenchmarkFuzzyMatcher_Search_MatchRatio(b *testing.B) {
 
 func BenchmarkFuzzyMatcher_FuzzyMatch(b *testing.B) {
 	matcher := NewFuzzyMatcher()
-	
+
 	testCases := []struct {
 		name  string
 		text  string
@@ -117,7 +117,7 @@ func BenchmarkFuzzyMatcher_FuzzyMatch(b *testing.B) {
 
 func BenchmarkFuzzyMatcher_SortByScore(b *testing.B) {
 	matcher := NewFuzzyMatcher()
-	
+
 	// Create scored items with different sizes
 	benchmarks := []struct {
 		name  string
@@ -131,7 +131,7 @@ func BenchmarkFuzzyMatcher_SortByScore(b *testing.B) {
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
 			scoredItems := generateScoredItems(bm.items)
-			
+
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				// Create a copy for each iteration since sorting modifies the slice
@@ -148,7 +148,7 @@ func BenchmarkFuzzyMatcher_SortByScore(b *testing.B) {
 func generateTestItems(count int) []history.ClipboardHistory {
 	items := make([]history.ClipboardHistory, count)
 	rand.Seed(time.Now().UnixNano())
-	
+
 	// Common words that might appear in clipboard history
 	words := []string{
 		"test", "example", "code", "function", "variable", "string", "number",
@@ -158,7 +158,7 @@ func generateTestItems(count int) []history.ClipboardHistory {
 		"server", "client", "request", "response", "api", "endpoint", "url",
 		"error", "debug", "log", "info", "warning", "success", "failure",
 	}
-	
+
 	for i := 0; i < count; i++ {
 		// Generate random content
 		numWords := rand.Intn(5) + 1 // 1-5 words
@@ -169,29 +169,29 @@ func generateTestItems(count int) []history.ClipboardHistory {
 			}
 			content += words[rand.Intn(len(words))]
 		}
-		
+
 		items[i] = history.ClipboardHistory{
 			Item:      content,
 			Hash:      fmt.Sprintf("hash%d", i),
 			TimeStamp: time.Now().Add(-time.Duration(i) * time.Minute),
 		}
 	}
-	
+
 	return items
 }
 
 func generateTestItemsWithMatchRatio(count int, matchWord string, matchRatio float64) []history.ClipboardHistory {
 	items := make([]history.ClipboardHistory, count)
 	rand.Seed(time.Now().UnixNano())
-	
+
 	matchCount := int(float64(count) * matchRatio)
-	
+
 	words := []string{
 		"example", "code", "function", "variable", "string", "number",
 		"file", "path", "directory", "document", "text", "content", "data",
 		"user", "admin", "system", "config", "settings", "option", "value",
 	}
-	
+
 	for i := 0; i < count; i++ {
 		var content string
 		if i < matchCount {
@@ -213,21 +213,21 @@ func generateTestItemsWithMatchRatio(count int, matchWord string, matchRatio flo
 				content += words[rand.Intn(len(words))]
 			}
 		}
-		
+
 		items[i] = history.ClipboardHistory{
 			Item:      content,
 			Hash:      fmt.Sprintf("hash%d", i),
 			TimeStamp: time.Now().Add(-time.Duration(i) * time.Minute),
 		}
 	}
-	
+
 	return items
 }
 
 func generateScoredItems(count int) []ScoredItem {
 	items := make([]ScoredItem, count)
 	rand.Seed(time.Now().UnixNano())
-	
+
 	for i := 0; i < count; i++ {
 		items[i] = ScoredItem{
 			Item: history.ClipboardHistory{
@@ -238,6 +238,6 @@ func generateScoredItems(count int) []ScoredItem {
 			Score: rand.Intn(1000), // Random score 0-999
 		}
 	}
-	
+
 	return items
 }
