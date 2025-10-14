@@ -85,16 +85,6 @@ func (m *Model) filterItems(query string) {
 	m.filtered = m.fuzzyMatcher.Search(allItems, query)
 }
 
-// isLower checks if a rune is lowercase
-func isLower(r rune) bool {
-	return r >= 'a' && r <= 'z'
-}
-
-// isUpper checks if a rune is uppercase
-func isUpper(r rune) bool {
-	return r >= 'A' && r <= 'Z'
-}
-
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
