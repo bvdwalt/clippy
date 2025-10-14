@@ -1,5 +1,6 @@
 # Clippy
 [![Build Format Test](https://github.com/bvdwalt/clippy/actions/workflows/build_format_test.yml/badge.svg)](https://github.com/bvdwalt/clippy/actions/workflows/build_format_test.yml)
+[![codecov](https://codecov.io/gh/bvdwalt/clippy/branch/main/graph/badge.svg)](https://codecov.io/gh/bvdwalt/clippy)
 
 A lightweight terminal-based clipboard history manager, built with Go and the Bubble Tea TUI framework.
 
