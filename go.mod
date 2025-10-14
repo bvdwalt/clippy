@@ -1,6 +1,6 @@
 module github.com/bvdwalt/clippy
 
-go 1.25.2
+go 1.24.0
 
 require (
 	github.com/atotto/clipboard v0.1.4
