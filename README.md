@@ -13,6 +13,9 @@ A lightweight terminal-based clipboard history manager, built with Go and the Bu
 - 📱 **Clean Terminal UI** - Beautiful, responsive interface that fits your workflow
 - 🔄 **Instant Copy** - Copy any historical item back to clipboard with a single keypress
 
+## Demo
+![Demo app showing some clipboard items](<demo/demo.png>)
+
 ## Installation
 
 ### Prerequisites
@@ -58,8 +61,18 @@ clippy
 |-----|--------|
 | `↑` / `k` | Navigate up through history |
 | `↓` / `j` | Navigate down through history |
-| `Enter` | Copy selected item to clipboard |
+| `Enter` / `c` | Copy selected item to clipboard |
+| `d` | Delete selected item from history |
+| `/` | Enter search mode |
+| `r` | Refresh/clear search results |
+| `Esc` | Exit search mode (when in search) |
 | `q` / `Ctrl+C` | Quit application |
+
+#### Search Mode
+When you press `/`, you'll enter search mode where you can:
+- Type to filter clipboard history using fuzzy search (similar to fzf)
+- Press `Enter` to apply the search filter
+- Press `Esc` to cancel and return to normal view
 
 ## How It Works
 
@@ -77,22 +90,37 @@ The application shows a preview of each clipboard entry (truncated to 60 charact
 ```
 clippy/
 ├── cmd/clippy/           # Main application entry point
-│   └── main.go
+│   ├── main.go           # Application entry point
+│   └── main_test.go      # Main package tests
+├── demo/                 # Demo application
+│   └── main.go           # Demo runner
 ├── internal/
 │   ├── history/          # Clipboard history management
-│   │   ├── types.go      # Data structures
-│   │   └── history.go    # History manager
+│   │   ├── history.go    # History manager implementation
+│   │   ├── types.go      # Data structures and types
+│   │   └── *_test.go     # History package tests
+│   ├── search/           # Fuzzy search functionality
+│   │   ├── fuzzy.go      # Fuzzy search implementation
+│   │   └── *_test.go     # Search package tests
 │   └── ui/               # Terminal user interface
 │       ├── model.go      # Bubble Tea model
-│       └── commands.go   # UI commands
+│       ├── commands.go   # UI commands and messaging
+│       ├── styles/       # UI styling and themes
+│       │   └── theme.go  # Color themes and styling
+│       ├── table/        # Table display management
+│       │   └── manager.go # Table rendering and state
+│       └── *_test.go     # UI package tests
 ├── history.json          # Persistent clipboard history (created at runtime)
-├── go.mod
-└── README.md
+├── go.mod                # Go module definition
+├── go.sum                # Go module dependencies
+└── README.md             # Project documentation
 ```
 
 ## Dependencies
 
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) - Terminal UI framework
+- [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components for Bubble Tea
+- [Lipgloss](https://github.com/charmbracelet/lipgloss) - TUI styling
 - [clipboard](https://github.com/atotto/clipboard) - Cross-platform clipboard access
 
 ## Privacy & Security
