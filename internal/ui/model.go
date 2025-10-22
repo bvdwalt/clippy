@@ -147,6 +147,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					selectedRow := m.tableManager.GetCursor()
 					if selectedRow < len(items) {
 						clipboard.WriteAll(items[selectedRow].Item)
+						m.historyManager.IncrementItemCount(selectedRow)
 					}
 				}
 			case "d":

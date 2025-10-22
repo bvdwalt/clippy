@@ -1,7 +1,7 @@
 package table
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/bvdwalt/clippy/internal/history"
@@ -19,8 +19,8 @@ type Manager struct {
 // NewManager creates a new table manager
 func NewManager(theme styles.TableTheme) *Manager {
 	columns := []table.Column{
-		{Title: "#", Width: 4},
 		{Title: "Content", Width: 60},
+		{Title: "Count", Width: 10},
 		{Title: "Time", Width: 19},
 	}
 
@@ -72,8 +72,8 @@ func (tm *Manager) UpdateRows(items []history.ClipboardHistory) {
 		}
 
 		rows[i] = table.Row{
-			fmt.Sprintf("%d", i+1),
 			content,
+			strconv.Itoa(item.Count),
 			item.TimeStamp.Format("2006-01-02 15:04:05"),
 		}
 	}

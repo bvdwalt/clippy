@@ -147,6 +147,7 @@ func (m *Manager) LoadFromDB() error {
 			Item:      entry.Content,
 			Hash:      entry.Hash,
 			TimeStamp: entry.Timestamp,
+			Count:     entry.Count,
 		}
 		m.items = append(m.items, item)
 		m.hashes[item.Hash] = struct{}{}
@@ -162,5 +163,19 @@ func newClipboardItem(content string) ClipboardHistory {
 		Item:      content,
 		Hash:      fmt.Sprintf("%x", sha256.Sum256([]byte(content))),
 		TimeStamp: time.Now(),
+		Count:     0,
 	}
+}
+
+// IncrementItemCount increments the copy count for an item by index
+func (m *Manager) IncrementItemCount(index int) error {
+	if index >= 0 && index < len(m.items) {
+		item := &m.items[index]
+		if err := m.dbClient.IncrementCount(item.Hash); err != nil {
+			return err
+		}
+		item.Count++
+		return nil
+	}
+	return fmt.Errorf("invalid index: %d", index)
 }
