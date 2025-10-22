@@ -2,13 +2,12 @@ package history
 
 import (
 	"crypto/sha256"
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"github.com/bvdwalt/clippy/internal/db"
 )
 
 const (
@@ -21,7 +20,7 @@ type Manager struct {
 	items    []ClipboardHistory
 	hashes   map[string]struct{}
 	lastHash string
-	db       *sql.DB
+	dbClient *db.Client
 	dbPath   string
 }
 
@@ -50,47 +49,25 @@ func NewManagerWithPath(dbPath string) (*Manager, error) {
 		return nil, fmt.Errorf("error creating directory: %w", err)
 	}
 
-	db, err := sql.Open("sqlite", dbPath)
+	dbClient, err := db.New(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("error opening database: %w", err)
 	}
 
 	manager := &Manager{
-		items:  make([]ClipboardHistory, 0),
-		hashes: make(map[string]struct{}),
-		db:     db,
-		dbPath: dbPath,
-	}
-
-	if err := manager.initDB(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("error initializing database: %w", err)
+		items:    make([]ClipboardHistory, 0),
+		hashes:   make(map[string]struct{}),
+		dbClient: dbClient,
+		dbPath:   dbPath,
 	}
 
 	return manager, nil
 }
 
-// initDB creates the necessary tables if they don't exist
-func (m *Manager) initDB() error {
-	schema := `
-	CREATE TABLE IF NOT EXISTS clipboard_history (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		content TEXT NOT NULL,
-		hash TEXT NOT NULL UNIQUE,
-		timestamp DATETIME NOT NULL
-	);
-	CREATE INDEX IF NOT EXISTS idx_timestamp ON clipboard_history(timestamp DESC);
-	CREATE INDEX IF NOT EXISTS idx_hash ON clipboard_history(hash);
-	`
-
-	_, err := m.db.Exec(schema)
-	return err
-}
-
 // Close closes the database connection
 func (m *Manager) Close() error {
-	if m.db != nil {
-		return m.db.Close()
+	if m.dbClient != nil {
+		return m.dbClient.Close()
 	}
 	return nil
 }
@@ -99,11 +76,12 @@ func (m *Manager) Close() error {
 func (m *Manager) AddItem(content string) bool {
 	item := newClipboardItem(content)
 	if !m.containsHash(item.Hash) {
-		_, err := m.db.Exec(
-			"INSERT INTO clipboard_history (content, hash, timestamp) VALUES (?, ?, ?)",
-			item.Item, item.Hash, item.TimeStamp,
-		)
-		if err != nil {
+		entry := db.ClipboardEntry{
+			Content:   item.Item,
+			Hash:      item.Hash,
+			Timestamp: item.TimeStamp,
+		}
+		if err := m.dbClient.Insert(entry); err != nil {
 			return false
 		}
 
@@ -138,8 +116,7 @@ func (m *Manager) DeleteItem(index int) bool {
 	if index >= 0 && index < len(m.items) {
 		item := m.items[index]
 
-		_, err := m.db.Exec("DELETE FROM clipboard_history WHERE hash = ?", item.Hash)
-		if err != nil {
+		if err := m.dbClient.Delete(item.Hash); err != nil {
 			return false
 		}
 
@@ -157,26 +134,26 @@ func (m *Manager) Count() int {
 
 // LoadFromDB loads history from the SQLite database
 func (m *Manager) LoadFromDB() error {
-	rows, err := m.db.Query("SELECT content, hash, timestamp FROM clipboard_history ORDER BY timestamp ASC")
+	entries, err := m.dbClient.LoadAll()
 	if err != nil {
-		return fmt.Errorf("error querying history: %w", err)
+		return err
 	}
-	defer rows.Close()
 
-	m.items = make([]ClipboardHistory, 0)
+	m.items = make([]ClipboardHistory, 0, len(entries))
 	m.hashes = make(map[string]struct{})
 
-	for rows.Next() {
-		var item ClipboardHistory
-		if err := rows.Scan(&item.Item, &item.Hash, &item.TimeStamp); err != nil {
-			return fmt.Errorf("error scanning row: %w", err)
+	for _, entry := range entries {
+		item := ClipboardHistory{
+			Item:      entry.Content,
+			Hash:      entry.Hash,
+			TimeStamp: entry.Timestamp,
 		}
 		m.items = append(m.items, item)
 		m.hashes[item.Hash] = struct{}{}
 		m.lastHash = item.Hash
 	}
 
-	return rows.Err()
+	return nil
 }
 
 // newClipboardItem creates a new clipboard history item

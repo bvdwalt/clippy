@@ -246,10 +246,10 @@ func TestSaveAndLoadFromDB(t *testing.T) {
 
 	// Create a new manager with the same database
 	newManager := &Manager{
-		items:  make([]ClipboardHistory, 0),
-		hashes: make(map[string]struct{}),
-		db:     manager.db,
-		dbPath: manager.dbPath,
+		items:    make([]ClipboardHistory, 0),
+		hashes:   make(map[string]struct{}),
+		dbClient: manager.dbClient,
+		dbPath:   manager.dbPath,
 	}
 
 	// Load from database
