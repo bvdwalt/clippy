@@ -170,10 +170,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			case "r":
-				// Refresh/clear search
+				// Refresh/clear search and reload from database
 				m.mode = TableView
 				m.textInput.SetValue("")
 				m.filtered = nil
+				m.historyManager.LoadFromDB()
 				m.updateTable()
 			default:
 				// Handle table navigation
