@@ -6,7 +6,8 @@ import (
 )
 
 func BenchmarkAddItem(b *testing.B) {
-	manager := NewManager()
+	manager, cleanup := setupTestManager(&testing.T{})
+	defer cleanup()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -16,7 +17,8 @@ func BenchmarkAddItem(b *testing.B) {
 }
 
 func BenchmarkAddItemDuplicates(b *testing.B) {
-	manager := NewManager()
+	manager, cleanup := setupTestManager(&testing.T{})
+	defer cleanup()
 	content := "duplicate content"
 
 	b.ResetTimer()
@@ -26,7 +28,8 @@ func BenchmarkAddItemDuplicates(b *testing.B) {
 }
 
 func BenchmarkGetItem(b *testing.B) {
-	manager := NewManager()
+	manager, cleanup := setupTestManager(&testing.T{})
+	defer cleanup()
 
 	// Pre-populate with 1000 items
 	for i := 0; i < 1000; i++ {
@@ -61,35 +64,20 @@ func BenchmarkNewClipboardItemLarge(b *testing.B) {
 	}
 }
 
-func BenchmarkSaveToFile(b *testing.B) {
-	manager := NewManager()
-
-	// Pre-populate with some items
-	for i := 0; i < 100; i++ {
-		manager.AddItem(fmt.Sprintf("item_%d", i))
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		manager.SaveToFile()
-	}
-
-	// Clean up
-	b.StopTimer()
-	// Note: This will leave the last file, but that's okay for benchmarking
-}
-
-func BenchmarkLoadFromFile(b *testing.B) {
-	// Create a test file first
-	setupManager := NewManager()
+func BenchmarkLoadFromDB(b *testing.B) {
+	// Create a test manager and populate it
+	setupManager, setupCleanup := setupTestManager(&testing.T{})
 	for i := 0; i < 100; i++ {
 		setupManager.AddItem(fmt.Sprintf("item_%d", i))
 	}
-	setupManager.SaveToFile()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		manager := NewManager()
-		manager.LoadFromFile()
+		testManager, testCleanup := setupTestManager(&testing.T{})
+		testManager.LoadFromDB()
+		testCleanup()
 	}
+
+	b.StopTimer()
+	setupCleanup()
 }

@@ -10,7 +10,11 @@ import (
 
 func main() {
 	// Create a temporary history manager
-	historyManager := history.NewManager()
+	historyManager, err := history.NewManager()
+	if err != nil {
+		log.Fatal("Failed to create history manager:", err)
+	}
+	defer historyManager.Close()
 
 	// Add some sample data to demonstrate the enhanced UI
 	sampleData := []string{

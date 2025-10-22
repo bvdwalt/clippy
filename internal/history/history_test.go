@@ -3,15 +3,41 @@ package history
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
 
+// setupTestManager creates an isolated test manager with a temporary database
+func setupTestManager(t *testing.T) (*Manager, func()) {
+	t.Helper()
+
+	tempDir, err := os.MkdirTemp("", "clippy_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+
+	dbPath := filepath.Join(tempDir, "test.db")
+	manager, err := NewManagerWithPath(dbPath)
+	if err != nil {
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to create test manager: %v", err)
+	}
+
+	cleanup := func() {
+		manager.Close()
+		os.RemoveAll(tempDir)
+	}
+
+	return manager, cleanup
+}
+
 func TestNewManager(t *testing.T) {
-	manager := NewManager()
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
 
 	if manager == nil {
-		t.Fatal("NewManager() returned nil")
+		t.Fatal("setupTestManager() returned nil")
 	}
 
 	if manager.Count() != 0 {
@@ -28,7 +54,8 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestAddItem(t *testing.T) {
-	manager := NewManager()
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
 
 	tests := []struct {
 		name     string
@@ -61,7 +88,8 @@ func TestAddItem(t *testing.T) {
 }
 
 func TestGetItem(t *testing.T) {
-	manager := NewManager()
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
 
 	// Test empty manager
 	_, ok := manager.GetItem(0)
@@ -102,7 +130,8 @@ func TestGetItem(t *testing.T) {
 }
 
 func TestGetItems(t *testing.T) {
-	manager := NewManager()
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
 
 	// Test empty manager
 	items := manager.GetItems()
@@ -129,7 +158,8 @@ func TestGetItems(t *testing.T) {
 }
 
 func TestCount(t *testing.T) {
-	manager := NewManager()
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
 
 	// Test empty manager
 	if manager.Count() != 0 {
@@ -204,36 +234,28 @@ func TestNewClipboardItem(t *testing.T) {
 	}
 }
 
-func TestSaveAndLoadFromFile(t *testing.T) {
-	// Use a temporary file for testing
-	tempFile := "test_history.json"
+func TestSaveAndLoadFromDB(t *testing.T) {
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
 
-	// Override the constant for testing
-	// Note: We'll need to be careful since this is a const
-	defer func() {
-		os.Remove(tempFile)
-	}()
-
-	// Create manager and add test data
-	manager := NewManager()
+	// Add test data
 	testContents := []string{"item1", "item2", "item3"}
 	for _, content := range testContents {
 		manager.AddItem(content)
 	}
 
-	// Test SaveToFile - we'll temporarily modify the filename
-	// Since HistoryFileName is a const, we need to test with the actual filename
-	err := manager.SaveToFile()
-	if err != nil {
-		t.Fatalf("SaveToFile() failed: %v", err)
+	// Create a new manager with the same database
+	newManager := &Manager{
+		items:  make([]ClipboardHistory, 0),
+		hashes: make(map[string]struct{}),
+		db:     manager.db,
+		dbPath: manager.dbPath,
 	}
-	defer os.Remove(HistoryFileName) // Clean up
 
-	// Create new manager and load
-	newManager := NewManager()
-	err = newManager.LoadFromFile()
+	// Load from database
+	err := newManager.LoadFromDB()
 	if err != nil {
-		t.Fatalf("LoadFromFile() failed: %v", err)
+		t.Fatalf("LoadFromDB() failed: %v", err)
 	}
 
 	// Verify loaded data
@@ -256,8 +278,9 @@ func TestSaveAndLoadFromFile(t *testing.T) {
 		if originalItem.Hash != loadedItem.Hash {
 			t.Errorf("Item %d: hash mismatch", i)
 		}
-		if !originalItem.TimeStamp.Equal(loadedItem.TimeStamp) {
-			t.Errorf("Item %d: timestamp mismatch", i)
+		// Allow for small timestamp differences due to database storage
+		if originalItem.TimeStamp.Sub(loadedItem.TimeStamp).Abs() > time.Second {
+			t.Errorf("Item %d: timestamp mismatch (diff > 1s)", i)
 		}
 	}
 
@@ -269,92 +292,18 @@ func TestSaveAndLoadFromFile(t *testing.T) {
 	}
 }
 
-func TestLoadFromNonExistentFile(t *testing.T) {
-	// Ensure file doesn't exist
-	nonExistentFile := "definitely_does_not_exist.json"
-	os.Remove(nonExistentFile)
+func TestLoadFromEmptyDB(t *testing.T) {
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
 
-	manager := NewManager()
-	err := manager.LoadFromFile()
-
-	// Should not return an error for non-existent file
+	err := manager.LoadFromDB()
 	if err != nil {
-		t.Errorf("LoadFromFile() should not error for non-existent file, got: %v", err)
+		t.Errorf("LoadFromDB() should not error for empty database, got: %v", err)
 	}
 
 	if manager.Count() != 0 {
-		t.Errorf("Expected empty manager after loading non-existent file, got count %d", manager.Count())
+		t.Errorf("Expected empty manager after loading empty database, got count %d", manager.Count())
 	}
-}
-
-func TestLoadFromCorruptedFile(t *testing.T) {
-	// Create a corrupted JSON file
-	corruptedContent := `{"invalid": json content`
-	err := os.WriteFile(HistoryFileName, []byte(corruptedContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create corrupted test file: %v", err)
-	}
-	defer os.Remove(HistoryFileName)
-
-	manager := NewManager()
-	err = manager.LoadFromFile()
-
-	if err == nil {
-		t.Error("Expected error when loading corrupted file")
-	}
-
-	if manager.Count() != 0 {
-		t.Errorf("Expected empty manager after failed load, got count %d", manager.Count())
-	}
-}
-
-func TestSaveToInvalidPath(t *testing.T) {
-	// This test might be platform-specific
-	// On Unix-like systems, we can try to save to a directory that doesn't exist
-	manager := NewManager()
-	manager.AddItem("test")
-
-	// Temporarily change the filename to an invalid path
-	// Since we can't change the const, we'll test the current behavior
-	// The real SaveToFile uses HistoryFileName which should work in current directory
-
-	// Instead, let's test by creating a file with no write permissions
-	restrictedFile := "restricted_history.json"
-	err := os.WriteFile(restrictedFile, []byte("test"), 0444) // read-only
-	if err != nil {
-		t.Skipf("Could not create read-only file for testing: %v", err)
-	}
-	defer func() {
-		os.Chmod(restrictedFile, 0644) // restore permissions
-		os.Remove(restrictedFile)
-	}()
-
-	// This test would require modifying the Manager to accept a custom filename
-	// For now, we'll just ensure SaveToFile works with valid permissions
-	err = manager.SaveToFile()
-	if err != nil {
-		t.Errorf("SaveToFile() failed with error: %v", err)
-	}
-	defer os.Remove(HistoryFileName)
-}
-
-func TestSaveToFileWithUnencodableData(t *testing.T) {
-	// Test case for when JSON encoding might fail
-	// This is tricky since ClipboardHistory has simple, encodable fields
-	// We'll test with the current implementation
-	manager := NewManager()
-	manager.AddItem("valid content")
-
-	err := manager.SaveToFile()
-	if err != nil {
-		t.Errorf("SaveToFile() should succeed with valid data, got error: %v", err)
-	}
-	defer os.Remove(HistoryFileName)
-
-	// Note: It's difficult to force a JSON encoding error with ClipboardHistory
-	// since all its fields (string, string, time.Time) are JSON-encodable.
-	// In a real scenario, you might test this by mocking the encoder or
-	// by temporarily replacing the encoder with a failing one.
 }
 
 func TestJSONMarshaling(t *testing.T) {

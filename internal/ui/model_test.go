@@ -4,12 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bvdwalt/clippy/internal/history"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestNewModel(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	if model.historyManager == nil {
@@ -31,7 +31,8 @@ func TestNewModel(t *testing.T) {
 }
 
 func TestModelInit(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	cmd := model.Init()
@@ -44,7 +45,8 @@ func TestModelInit(t *testing.T) {
 }
 
 func TestModelUpdateKeyMessages(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 
 	// Add some test items
 	historyManager.AddItem("first item")
@@ -84,7 +86,8 @@ func TestModelUpdateKeyMessages(t *testing.T) {
 }
 
 func TestModelUpdateTickMessage(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	// Create a TickMsg
@@ -114,7 +117,8 @@ func TestModelUpdateTickMessage(t *testing.T) {
 }
 
 func TestModelUpdateWindowSizeMessage(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	windowMsg := tea.WindowSizeMsg{
@@ -135,7 +139,8 @@ func TestModelUpdateWindowSizeMessage(t *testing.T) {
 }
 
 func TestModelView(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	// Test empty history
@@ -167,7 +172,8 @@ func TestModelView(t *testing.T) {
 }
 
 func TestModelViewLongContent(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	// Add an item longer than 60 characters
@@ -190,7 +196,8 @@ func TestModelViewLongContent(t *testing.T) {
 }
 
 func TestModelViewNewlineReplacement(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	// Add content with newlines
@@ -213,7 +220,8 @@ func TestModelViewNewlineReplacement(t *testing.T) {
 }
 
 func TestModelViewCursorMovement(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	// Add multiple items
@@ -245,7 +253,8 @@ func TestModelViewCursorMovement(t *testing.T) {
 }
 
 func TestModelEnterKeyWithValidItem(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	// Add some items
@@ -269,7 +278,8 @@ func TestModelEnterKeyWithValidItem(t *testing.T) {
 }
 
 func TestModelEnterKeyWithInvalidCursor(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	// Test the GetItem logic with invalid cursor (empty history)
@@ -280,7 +290,8 @@ func TestModelEnterKeyWithInvalidCursor(t *testing.T) {
 }
 
 func TestModelUnknownKeyMessage(t *testing.T) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	// For testing unknown keys, we'll focus on testing that

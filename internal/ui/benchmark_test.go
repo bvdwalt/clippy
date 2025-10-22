@@ -3,12 +3,11 @@ package ui
 import (
 	"strings"
 	"testing"
-
-	"github.com/bvdwalt/clippy/internal/history"
 )
 
 func BenchmarkNewModel(b *testing.B) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManagerForBench(b)
+	defer cleanup()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -17,7 +16,8 @@ func BenchmarkNewModel(b *testing.B) {
 }
 
 func BenchmarkModelView(b *testing.B) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManagerForBench(b)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	// Add some items for benchmarking
@@ -32,7 +32,8 @@ func BenchmarkModelView(b *testing.B) {
 }
 
 func BenchmarkModelViewLargeHistory(b *testing.B) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManagerForBench(b)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	// Add many items to test performance with large history
@@ -47,7 +48,8 @@ func BenchmarkModelViewLargeHistory(b *testing.B) {
 }
 
 func BenchmarkModelViewLongContent(b *testing.B) {
-	historyManager := history.NewManager()
+	historyManager, cleanup := setupTestHistoryManagerForBench(b)
+	defer cleanup()
 	model := NewModel(historyManager)
 
 	// Add items with very long content

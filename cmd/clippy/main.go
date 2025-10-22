@@ -17,8 +17,13 @@ func main() {
 		defer logFile.Close()
 	}
 
-	historyManager := history.NewManager()
-	if err := historyManager.LoadFromFile(); err != nil {
+	historyManager, err := history.NewManager()
+	if err != nil {
+		log.Fatalf("Failed to create history manager: %v", err)
+	}
+	defer historyManager.Close()
+
+	if err := historyManager.LoadFromDB(); err != nil {
 		log.Printf("Warning: Could not load history: %v", err)
 	}
 
@@ -28,9 +33,5 @@ func main() {
 	_, err = program.Run()
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	if err := historyManager.SaveToFile(); err != nil {
-		log.Printf("Error saving history: %v", err)
 	}
 }
