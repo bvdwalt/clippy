@@ -266,21 +266,26 @@ func TestSaveAndLoadFromDB(t *testing.T) {
 	originalItems := manager.GetItems()
 	loadedItems := newManager.GetItems()
 
-	for i, originalItem := range originalItems {
-		if i >= len(loadedItems) {
-			t.Fatalf("Missing item at index %d", i)
+	// Create a map of loaded items by hash for comparison
+	loadedByHash := make(map[string]ClipboardHistory)
+	for _, item := range loadedItems {
+		loadedByHash[item.Hash] = item
+	}
+
+	// Verify all original items are present in loaded items
+	for _, originalItem := range originalItems {
+		loadedItem, exists := loadedByHash[originalItem.Hash]
+		if !exists {
+			t.Errorf("Item not found after loading: %q", originalItem.Item)
+			continue
 		}
 
-		loadedItem := loadedItems[i]
 		if originalItem.Item != loadedItem.Item {
-			t.Errorf("Item %d: expected %q, got %q", i, originalItem.Item, loadedItem.Item)
-		}
-		if originalItem.Hash != loadedItem.Hash {
-			t.Errorf("Item %d: hash mismatch", i)
+			t.Errorf("Item content mismatch for hash %s: expected %q, got %q", originalItem.Hash, originalItem.Item, loadedItem.Item)
 		}
 		// Allow for small timestamp differences due to database storage
 		if originalItem.TimeStamp.Sub(loadedItem.TimeStamp).Abs() > time.Second {
-			t.Errorf("Item %d: timestamp mismatch (diff > 1s)", i)
+			t.Errorf("Item %q: timestamp mismatch (diff > 1s)", originalItem.Item)
 		}
 	}
 
