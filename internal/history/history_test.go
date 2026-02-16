@@ -20,13 +20,19 @@ func setupTestManager(t *testing.T) (*Manager, func()) {
 	dbPath := filepath.Join(tempDir, "test.db")
 	manager, err := NewManagerWithPath(dbPath)
 	if err != nil {
-		os.RemoveAll(tempDir)
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Logf("Failed to remove temp dir: %v", err)
+		}
 		t.Fatalf("Failed to create test manager: %v", err)
 	}
 
 	cleanup := func() {
-		manager.Close()
-		os.RemoveAll(tempDir)
+		if err := manager.Close(); err != nil {
+			t.Logf("Failed to close manager: %v", err)
+		}
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Logf("Failed to remove temp dir: %v", err)
+		}
 	}
 
 	return manager, cleanup

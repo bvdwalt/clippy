@@ -147,7 +147,7 @@ func BenchmarkFuzzyMatcher_SortByScore(b *testing.B) {
 
 func generateTestItems(count int) []history.ClipboardHistory {
 	items := make([]history.ClipboardHistory, count)
-	rand.Seed(time.Now().UnixNano())
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// Common words that might appear in clipboard history
 	words := []string{
@@ -161,13 +161,13 @@ func generateTestItems(count int) []history.ClipboardHistory {
 
 	for i := 0; i < count; i++ {
 		// Generate random content
-		numWords := rand.Intn(5) + 1 // 1-5 words
+		numWords := rng.Intn(5) + 1 // 1-5 words
 		content := ""
 		for j := 0; j < numWords; j++ {
 			if j > 0 {
 				content += " "
 			}
-			content += words[rand.Intn(len(words))]
+			content += words[rng.Intn(len(words))]
 		}
 
 		items[i] = history.ClipboardHistory{
@@ -182,7 +182,7 @@ func generateTestItems(count int) []history.ClipboardHistory {
 
 func generateTestItemsWithMatchRatio(count int, matchWord string, matchRatio float64) []history.ClipboardHistory {
 	items := make([]history.ClipboardHistory, count)
-	rand.Seed(time.Now().UnixNano())
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	matchCount := int(float64(count) * matchRatio)
 
@@ -196,21 +196,21 @@ func generateTestItemsWithMatchRatio(count int, matchWord string, matchRatio flo
 		var content string
 		if i < matchCount {
 			// Items that will match
-			if rand.Float64() < 0.5 {
+			if rng.Float64() < 0.5 {
 				// Put match word at the beginning
-				content = matchWord + " " + words[rand.Intn(len(words))]
+				content = matchWord + " " + words[rng.Intn(len(words))]
 			} else {
 				// Put match word in the middle or end
-				content = words[rand.Intn(len(words))] + " " + matchWord
+				content = words[rng.Intn(len(words))] + " " + matchWord
 			}
 		} else {
 			// Items that won't match
-			numWords := rand.Intn(3) + 1
+			numWords := rng.Intn(3) + 1
 			for j := 0; j < numWords; j++ {
 				if j > 0 {
 					content += " "
 				}
-				content += words[rand.Intn(len(words))]
+				content += words[rng.Intn(len(words))]
 			}
 		}
 
@@ -226,7 +226,7 @@ func generateTestItemsWithMatchRatio(count int, matchWord string, matchRatio flo
 
 func generateScoredItems(count int) []ScoredItem {
 	items := make([]ScoredItem, count)
-	rand.Seed(time.Now().UnixNano())
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for i := 0; i < count; i++ {
 		items[i] = ScoredItem{
@@ -235,7 +235,7 @@ func generateScoredItems(count int) []ScoredItem {
 				Hash:      fmt.Sprintf("hash%d", i),
 				TimeStamp: time.Now(),
 			},
-			Score: rand.Intn(1000), // Random score 0-999
+			Score: rng.Intn(1000), // Random score 0-999
 		}
 	}
 

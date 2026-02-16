@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/atotto/clipboard"
@@ -32,7 +33,6 @@ type Model struct {
 	filtered       []history.ClipboardHistory
 	height         int
 	width          int
-	cursor         int // Manually tracked cursor position for navigation
 }
 
 // NewModel creates a new UI model
@@ -65,8 +65,6 @@ func NewModel(historyManager *history.Manager) Model {
 func (m *Model) updateTable() {
 	items := m.getDisplayItems()
 	m.tableManager.UpdateRows(items)
-	// Reset cursor to 0 when table is updated
-	m.cursor = 0
 }
 
 // getDisplayItems returns the items to display (filtered or all)
@@ -149,8 +147,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if len(items) > 0 {
 					selectedRow := m.tableManager.GetCursor()
 					if selectedRow < len(items) {
-						clipboard.WriteAll(items[selectedRow].Item)
-						m.historyManager.IncrementItemCount(selectedRow)
+						if err := clipboard.WriteAll(items[selectedRow].Item); err != nil {
+							log.Printf("Failed to write to clipboard: %v", err)
+						}
+						if err := m.historyManager.IncrementItemCount(selectedRow); err != nil {
+							log.Printf("Failed to increment item count: %v", err)
+						}
 					}
 				}
 			case "d":
@@ -177,31 +179,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = TableView
 				m.textInput.SetValue("")
 				m.filtered = nil
-				m.historyManager.LoadFromDB()
+				if err := m.historyManager.LoadFromDB(); err != nil {
+					log.Printf("Failed to load from database: %v", err)
+				}
 				m.updateTable()
 			default:
-				// Handle table navigation
-				items := m.getDisplayItems()
-				keyStr := msg.String()
-
-				// Handle cursor movement keys
-				switch keyStr {
-				case "down", "j":
-					if m.cursor < len(items)-1 {
-						m.cursor++
-					}
-					return m, nil
-				case "up", "k":
-					if m.cursor > 0 {
-						m.cursor--
-					}
-					return m, nil
-				}
-
-				// Pass other keys to the table for default handling
+				// Handle table navigation (arrow keys, etc.)
 				table := m.tableManager.GetTable()
-				table, cmd = table.Update(msg)
-				m.tableManager.SetTable(table)
+				updatedTable, cmd := table.Update(msg)
+				m.tableManager.SetTable(updatedTable)
+				return m, cmd
 			}
 		}
 
@@ -276,7 +263,7 @@ func (m Model) View() string {
 
 // GetCursor returns the current cursor position for testing
 func (m Model) GetCursor() int {
-	return m.cursor
+	return m.tableManager.GetCursor()
 }
 
 // SetCursor sets the cursor position for testing
