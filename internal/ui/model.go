@@ -32,7 +32,6 @@ type Model struct {
 	filtered       []history.ClipboardHistory
 	height         int
 	width          int
-	cursor         int // Manually tracked cursor position for navigation
 }
 
 // NewModel creates a new UI model
@@ -65,8 +64,6 @@ func NewModel(historyManager *history.Manager) Model {
 func (m *Model) updateTable() {
 	items := m.getDisplayItems()
 	m.tableManager.UpdateRows(items)
-	// Reset cursor to 0 when table is updated
-	m.cursor = 0
 }
 
 // getDisplayItems returns the items to display (filtered or all)
@@ -181,24 +178,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateTable()
 			default:
 				// Handle table navigation
-				items := m.getDisplayItems()
-				keyStr := msg.String()
-
-				// Handle cursor movement keys
-				switch keyStr {
-				case "down", "j":
-					if m.cursor < len(items)-1 {
-						m.cursor++
-					}
-					return m, nil
-				case "up", "k":
-					if m.cursor > 0 {
-						m.cursor--
-					}
-					return m, nil
-				}
-
-				// Pass other keys to the table for default handling
 				table := m.tableManager.GetTable()
 				table, cmd = table.Update(msg)
 				m.tableManager.SetTable(table)
@@ -276,7 +255,7 @@ func (m Model) View() string {
 
 // GetCursor returns the current cursor position for testing
 func (m Model) GetCursor() int {
-	return m.cursor
+	return m.tableManager.GetCursor()
 }
 
 // SetCursor sets the cursor position for testing

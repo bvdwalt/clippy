@@ -7,7 +7,6 @@ import (
 	"github.com/bvdwalt/clippy/internal/history"
 	"github.com/bvdwalt/clippy/internal/ui/styles"
 	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -82,9 +81,6 @@ func (tm *Manager) UpdateRows(items []history.ClipboardHistory) {
 	}
 
 	tm.table.SetRows(rows)
-	// Reset focus state to ensure keyboard navigation works
-	tm.table.Blur()
-	tm.table.Focus()
 }
 
 // SetSize updates the table dimensions
@@ -95,32 +91,7 @@ func (tm *Manager) SetSize(width, height int) {
 
 // GetCursor returns the current cursor position
 func (tm *Manager) GetCursor() int {
-	cursor := tm.table.Cursor()
-	if cursor < 0 {
-		return 0
-	}
-	return cursor
-}
-
-// MoveCursorDown moves the cursor down by one position
-func (tm *Manager) MoveCursorDown(maxRows int) {
-	cursor := tm.GetCursor()
-	if cursor < maxRows-1 {
-		// Move cursor down by simulating key presses through table internals
-		table := tm.table
-		// We'll try to move cursor by calling Update with a down key multiple times if needed
-		// For now, we'll move one step at a time
-		tm.table, _ = table.Update(tea.KeyMsg{Type: tea.KeyDown})
-	}
-}
-
-// MoveCursorUp moves the cursor up by one position
-func (tm *Manager) MoveCursorUp() {
-	cursor := tm.GetCursor()
-	if cursor > 0 {
-		table := tm.table
-		tm.table, _ = table.Update(tea.KeyMsg{Type: tea.KeyUp})
-	}
+	return tm.table.Cursor()
 }
 
 // View returns the table view
