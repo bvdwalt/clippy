@@ -14,7 +14,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to create history manager:", err)
 	}
-	defer historyManager.Close()
+	defer func() {
+		if err := historyManager.Close(); err != nil {
+			log.Printf("Failed to close history manager: %v", err)
+		}
+	}()
 
 	// Add some sample data to demonstrate the enhanced UI
 	sampleData := []string{

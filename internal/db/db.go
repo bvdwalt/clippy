@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -31,7 +32,9 @@ func New(dbPath string) (*Client, error) {
 	client := &Client{db: db}
 
 	if err := client.initialize(); err != nil {
-		db.Close()
+		if closeErr := db.Close(); closeErr != nil {
+			return nil, fmt.Errorf("error initializing database: %w (also failed to close db: %v)", err, closeErr)
+		}
 		return nil, fmt.Errorf("error initializing database: %w", err)
 	}
 
@@ -128,7 +131,11 @@ func (c *Client) LoadAll() ([]ClipboardEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error querying history: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Failed to close rows: %v", err)
+		}
+	}()
 
 	entries := make([]ClipboardEntry, 0)
 	for rows.Next() {

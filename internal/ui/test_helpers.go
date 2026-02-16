@@ -20,13 +20,19 @@ func setupTestHistoryManager(t *testing.T) (*history.Manager, func()) {
 	dbPath := filepath.Join(tempDir, "test.db")
 	manager, err := history.NewManagerWithPath(dbPath)
 	if err != nil {
-		os.RemoveAll(tempDir)
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Logf("Failed to remove temp dir: %v", err)
+		}
 		t.Fatalf("Failed to create test manager: %v", err)
 	}
 
 	cleanup := func() {
-		manager.Close()
-		os.RemoveAll(tempDir)
+		if err := manager.Close(); err != nil {
+			t.Logf("Failed to close manager: %v", err)
+		}
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Logf("Failed to remove temp dir: %v", err)
+		}
 	}
 
 	return manager, cleanup
@@ -44,13 +50,19 @@ func setupTestHistoryManagerForBench(b *testing.B) (*history.Manager, func()) {
 	dbPath := filepath.Join(tempDir, "bench.db")
 	manager, err := history.NewManagerWithPath(dbPath)
 	if err != nil {
-		os.RemoveAll(tempDir)
+		if err := os.RemoveAll(tempDir); err != nil {
+			b.Logf("Failed to remove temp dir: %v", err)
+		}
 		b.Fatalf("Failed to create benchmark manager: %v", err)
 	}
 
 	cleanup := func() {
-		manager.Close()
-		os.RemoveAll(tempDir)
+		if err := manager.Close(); err != nil {
+			b.Logf("Failed to close manager: %v", err)
+		}
+		if err := os.RemoveAll(tempDir); err != nil {
+			b.Logf("Failed to remove temp dir: %v", err)
+		}
 	}
 
 	return manager, cleanup

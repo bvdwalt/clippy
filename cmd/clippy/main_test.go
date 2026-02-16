@@ -31,8 +31,12 @@ func createTempTestDir(t *testing.T) (string, func()) {
 	}
 
 	cleanup := func() {
-		os.Chdir(originalDir)
-		os.RemoveAll(tempDir)
+		if err := os.Chdir(originalDir); err != nil {
+			log.Printf("Failed to change back to original directory: %v", err)
+		}
+		if err := os.RemoveAll(tempDir); err != nil {
+			log.Printf("Failed to remove temp directory: %v", err)
+		}
 	}
 
 	return tempDir, cleanup
@@ -50,13 +54,19 @@ func setupTestHistoryManager(t *testing.T) (*history.Manager, func()) {
 	dbPath := fmt.Sprintf("%s/test.db", tempDir)
 	manager, err := history.NewManagerWithPath(dbPath)
 	if err != nil {
-		os.RemoveAll(tempDir)
+		if err := os.RemoveAll(tempDir); err != nil {
+			log.Printf("Failed to remove temp dir: %v", err)
+		}
 		t.Fatalf("Failed to create test manager: %v", err)
 	}
 
 	cleanup := func() {
-		manager.Close()
-		os.RemoveAll(tempDir)
+		if err := manager.Close(); err != nil {
+			log.Printf("Failed to close manager: %v", err)
+		}
+		if err := os.RemoveAll(tempDir); err != nil {
+			log.Printf("Failed to remove temp directory: %v", err)
+		}
 	}
 
 	return manager, cleanup
@@ -66,7 +76,11 @@ func TestLogRedirection(t *testing.T) {
 	t.Run("Successful log redirection", func(t *testing.T) {
 		logFile, err := os.OpenFile("/dev/null", os.O_WRONLY, 0)
 		if err == nil {
-			defer logFile.Close()
+			defer func() {
+				if err := logFile.Close(); err != nil {
+					t.Logf("Failed to close log file: %v", err)
+				}
+			}()
 
 			originalOutput := log.Writer()
 			defer log.SetOutput(originalOutput)
@@ -86,7 +100,9 @@ func TestLogRedirection(t *testing.T) {
 		logFile, err := os.OpenFile(invalidPath, os.O_WRONLY, 0)
 
 		if err == nil {
-			logFile.Close()
+			if err := logFile.Close(); err != nil {
+				t.Logf("Failed to close log file: %v", err)
+			}
 			t.Skip("Unexpected success opening invalid path")
 		}
 	})
@@ -407,7 +423,11 @@ func BenchmarkApplicationInitialization(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			b.Logf("Failed to remove temp dir: %v", err)
+		}
+	}()
 
 	dbPath := tempDir + "/bench.db"
 	setupManager, err := history.NewManagerWithPath(dbPath)
@@ -417,7 +437,9 @@ func BenchmarkApplicationInitialization(b *testing.B) {
 	for i := 0; i < 100; i++ {
 		setupManager.AddItem(fmt.Sprintf("benchmark item %d", i))
 	}
-	setupManager.Close()
+	if err := setupManager.Close(); err != nil {
+		b.Fatalf("Failed to close setup manager: %v", err)
+	}
 
 	b.ResetTimer()
 
@@ -427,12 +449,16 @@ func BenchmarkApplicationInitialization(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Failed to create manager: %v", err)
 		}
-		historyManager.LoadFromDB()
+		if err := historyManager.LoadFromDB(); err != nil {
+			b.Fatalf("Failed to load from DB: %v", err)
+		}
 
 		initialModel := ui.NewModel(historyManager)
 		tea.NewProgram(initialModel)
 
-		historyManager.Close()
+		if err := historyManager.Close(); err != nil {
+			b.Fatalf("Failed to close history manager: %v", err)
+		}
 		// Note: We don't run the program as that would block
 	}
 }
@@ -442,7 +468,11 @@ func BenchmarkFullApplicationCycle(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			b.Logf("Failed to remove temp dir: %v", err)
+		}
+	}()
 
 	dbPath := tempDir + "/cycle.db"
 	b.ResetTimer()
@@ -453,9 +483,13 @@ func BenchmarkFullApplicationCycle(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Failed to create manager: %v", err)
 		}
-		historyManager.LoadFromDB()
+		if err := historyManager.LoadFromDB(); err != nil {
+			b.Fatalf("Failed to load from DB: %v", err)
+		}
 		historyManager.AddItem(fmt.Sprintf("cycle item %d", i))
 		// Note: SaveToDB() is now a no-op as saves are immediate with SQLite
-		historyManager.Close()
+		if err := historyManager.Close(); err != nil {
+			b.Fatalf("Failed to close history manager: %v", err)
+		}
 	}
 }

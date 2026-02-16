@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/atotto/clipboard"
@@ -146,8 +147,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if len(items) > 0 {
 					selectedRow := m.tableManager.GetCursor()
 					if selectedRow < len(items) {
-						clipboard.WriteAll(items[selectedRow].Item)
-						m.historyManager.IncrementItemCount(selectedRow)
+						if err := clipboard.WriteAll(items[selectedRow].Item); err != nil {
+							log.Printf("Failed to write to clipboard: %v", err)
+						}
+						if err := m.historyManager.IncrementItemCount(selectedRow); err != nil {
+							log.Printf("Failed to increment item count: %v", err)
+						}
 					}
 				}
 			case "d":
@@ -174,13 +179,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = TableView
 				m.textInput.SetValue("")
 				m.filtered = nil
-				m.historyManager.LoadFromDB()
+				if err := m.historyManager.LoadFromDB(); err != nil {
+					log.Printf("Failed to load from database: %v", err)
+				}
 				m.updateTable()
 			default:
-				// Handle table navigation
+				// Handle table navigation (arrow keys, etc.)
 				table := m.tableManager.GetTable()
-				table, cmd = table.Update(msg)
-				m.tableManager.SetTable(table)
+				updatedTable, cmd := table.Update(msg)
+				m.tableManager.SetTable(updatedTable)
+				return m, cmd
 			}
 		}
 

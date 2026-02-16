@@ -74,7 +74,9 @@ func BenchmarkLoadFromDB(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		testManager, testCleanup := setupTestManager(&testing.T{})
-		testManager.LoadFromDB()
+		if err := testManager.LoadFromDB(); err != nil {
+			b.Fatalf("Failed to load from DB: %v", err)
+		}
 		testCleanup()
 	}
 

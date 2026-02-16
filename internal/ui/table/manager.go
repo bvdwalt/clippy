@@ -81,6 +81,8 @@ func (tm *Manager) UpdateRows(items []history.ClipboardHistory) {
 	}
 
 	tm.table.SetRows(rows)
+	// Reset cursor to 0 after setting rows
+	tm.table.SetCursor(0)
 }
 
 // SetSize updates the table dimensions
@@ -91,7 +93,11 @@ func (tm *Manager) SetSize(width, height int) {
 
 // GetCursor returns the current cursor position
 func (tm *Manager) GetCursor() int {
-	return tm.table.Cursor()
+	cursor := tm.table.Cursor()
+	if cursor < 0 {
+		return 0
+	}
+	return cursor
 }
 
 // View returns the table view
