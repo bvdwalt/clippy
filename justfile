@@ -1,0 +1,53 @@
+BINARY_NAME := "clippy"
+BINARY_PATH := "./" + BINARY_NAME
+CMD_PATH := "./cmd/" + BINARY_NAME
+VERSION := `git describe --tags --always --dirty 2>/dev/null || echo "dev"`
+BUILD_FLAGS := "-ldflags \"-X main.version=" + VERSION + "\""
+
+build:
+    @echo "Building {{BINARY_NAME}}..."
+    @go build {{BUILD_FLAGS}} -o {{BINARY_PATH}} {{CMD_PATH}}
+    @echo "Build complete: {{BINARY_PATH}}"
+
+run: build
+    @echo "Running {{BINARY_NAME}}..."
+    @{{BINARY_PATH}}
+
+install: build
+    @echo "Installing {{BINARY_NAME}} to /usr/local/bin..."
+    @sudo cp {{BINARY_PATH}} /usr/local/bin/{{BINARY_NAME}}
+    @echo "Installation complete: /usr/local/bin/{{BINARY_NAME}}"
+
+test:
+    @echo "Running tests..."
+    @go test ./...
+
+test-verbose:
+    @echo "Running tests (verbose)..."
+    @go test -v ./...
+
+test-coverage:
+    @echo "Running tests with coverage..."
+    @go test -v -coverprofile=coverage.out ./...
+    @go tool cover -html=coverage.out -o coverage.html
+    @echo "Coverage report generated: coverage.html"
+
+fmt:
+    @echo "Formatting code..."
+    @go fmt ./...
+    @echo "Format complete"
+
+lint:
+    @echo "Running linter..."
+    @golangci-lint run ./... 2>/dev/null || echo "golangci-lint not installed. Install with: brew install golangci-lint"
+
+clean:
+    @echo "Cleaning build artifacts..."
+    @rm -f {{BINARY_PATH}}
+    @rm -f coverage.out coverage.html
+    @go clean
+    @echo "Clean complete"
+
+demo:
+    @echo "Running demo application..."
+    @go run ./demo/main.go

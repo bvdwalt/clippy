@@ -52,7 +52,7 @@ sudo dnf install wl-clipboard  # Fedora
 Start the clipboard history manager:
 
 ```bash
-clippy
+just run
 ```
 
 ### Keybindings
@@ -79,8 +79,8 @@ When you press `/`, you'll enter search mode where you can:
 Clippy monitors your system clipboard every 2 seconds and automatically captures any new content. Each clipboard entry is:
 
 1. **Hashed** using SHA-256 to detect duplicates
-2. **Timestamped** for chronological organization  
-3. **Persisted** to `history.json` in the current directory
+2. **Timestamped** for chronological organization
+3. **Persisted** to `clipp.db` in the config dir `~/.clippy/clippy.db`
 4. **Displayed** in a scrollable terminal interface
 
 The application shows a preview of each clipboard entry (truncated to 60 characters) and replaces newlines with spaces for clean display.
@@ -110,7 +110,6 @@ clippy/
 │       ├── table/        # Table display management
 │       │   └── manager.go # Table rendering and state
 │       └── *_test.go     # UI package tests
-├── history.json          # Persistent clipboard history (created at runtime)
 ├── go.mod                # Go module definition
 ├── go.sum                # Go module dependencies
 └── README.md             # Project documentation
@@ -125,7 +124,7 @@ clippy/
 
 ## Privacy & Security
 
-- Clipboard history is stored locally in `history.json`
+- Clipboard history is stored locally in `~/.clippy/clippy.db`
 - No data is transmitted over the network
 - SHA-256 hashes are used only for duplicate detection, not security
 - All clipboard content is stored in plain text locally
