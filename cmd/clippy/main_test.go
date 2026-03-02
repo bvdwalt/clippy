@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/bvdwalt/clippy/internal/history"
 	"github.com/bvdwalt/clippy/internal/ui"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // createTempTestDir creates a temporary directory for testing
@@ -179,11 +179,12 @@ func TestUIModelInitialization(t *testing.T) {
 		// Verify model is properly initialized
 		// We can't easily test the internal state, but we can test the public interface
 		view := initialModel.View()
-		if !strings.Contains(view, "test item") {
+		viewStr := view.Content
+		if !strings.Contains(viewStr, "test item") {
 			t.Error("Expected model view to contain test item")
 		}
 
-		if !strings.Contains(view, "Clipboard History") {
+		if !strings.Contains(viewStr, "Clipboard History") {
 			t.Error("Expected model view to contain title")
 		}
 	})
@@ -225,8 +226,6 @@ func TestBubbleteaProgramCreation(t *testing.T) {
 		// Test creating program with options (as might be done in real app)
 		program := tea.NewProgram(
 			initialModel,
-			tea.WithAltScreen(),       // Use alternate screen
-			tea.WithMouseCellMotion(), // Enable mouse support
 		)
 
 		if program == nil {
@@ -255,7 +254,7 @@ func TestIntegrationFlow(t *testing.T) {
 
 		// Step 4: UI model creation
 		initialModel := ui.NewModel(historyManager)
-		if initialModel.View() == "" {
+		if initialModel.View().Content == "" {
 			t.Error("Expected non-empty initial view")
 		}
 
@@ -390,15 +389,16 @@ func TestMainFunctionComponents(t *testing.T) {
 		// Test that the view renders correctly with table format
 		model.UpdateTable() // Update table with new items
 		view := model.View()
+		viewStr := view.Content
 		for i, item := range testItems {
 			// Check for the item number in table format
 			expectedNumber := fmt.Sprintf("%d", i+1)
-			if !strings.Contains(view, expectedNumber) {
+			if !strings.Contains(viewStr, expectedNumber) {
 				t.Errorf("Expected view to contain item number %d", i+1)
 			}
 			// Check for content (newlines are converted to spaces in table view)
 			expectedContent := strings.ReplaceAll(item, "\n", " ")
-			if !strings.Contains(view, expectedContent) {
+			if !strings.Contains(viewStr, expectedContent) {
 				t.Errorf("Expected view to contain transformed item content: %s", expectedContent)
 			}
 		}

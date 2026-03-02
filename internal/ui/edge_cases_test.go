@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestModelViewEdgeCases(t *testing.T) {
@@ -20,9 +20,10 @@ func TestModelViewEdgeCases(t *testing.T) {
 		model.UpdateTable() // Update table with new items
 
 		view := model.View()
+		viewStr := view.Content
 
 		// Should still render without crashing
-		if !contains(view, "single item") {
+		if !contains(viewStr, "single item") {
 			t.Error("View should contain the single item")
 		}
 
@@ -41,9 +42,10 @@ func TestModelViewEdgeCases(t *testing.T) {
 		model.UpdateTable() // Update table with new items
 
 		view := model.View()
+		viewStr := view.Content
 
 		// Should render without crashing
-		if !contains(view, "test item") {
+		if !contains(viewStr, "test item") {
 			t.Error("View should contain the item")
 		}
 
@@ -64,9 +66,10 @@ func TestModelViewEdgeCases(t *testing.T) {
 		model.UpdateTable() // Update table with new items
 
 		view := model.View()
+		viewStr := view.Content
 
 		// Should show full content without truncation (60 chars fits in 60-char column)
-		if !contains(view, content60) {
+		if !contains(viewStr, content60) {
 			t.Error("60-character content should be shown in full")
 		}
 	})
@@ -82,15 +85,16 @@ func TestModelViewEdgeCases(t *testing.T) {
 		model.UpdateTable() // Update table with new items
 
 		view := model.View()
+		viewStr := view.Content
 
 		// Should show truncated content (61 chars truncated to 57 + "...")
 		expected := strings.Repeat("b", 57) + "..."
-		if !contains(view, expected) {
+		if !contains(viewStr, expected) {
 			t.Error("61-character content should be truncated to 57 chars + '...'")
 		}
 
 		// Should not contain the full content
-		if contains(view, content61) {
+		if contains(viewStr, content61) {
 			t.Error("61-character content should not appear in full")
 		}
 	})
@@ -106,11 +110,12 @@ func TestModelViewEdgeCases(t *testing.T) {
 		model.UpdateTable() // Update table with new items
 
 		view := model.View()
+		viewStr := view.Content
 
 		// In the table format, newlines, carriage returns, and tabs are replaced with spaces
 		expected := "line1 line2 line3 column2" // \n, \r, and \t all become spaces
-		if !contains(view, expected) {
-			t.Errorf("Expected %q in view, got: %s", expected, view)
+		if !contains(viewStr, expected) {
+			t.Errorf("Expected %q in view, got: %s", expected, viewStr)
 		}
 	})
 
@@ -123,9 +128,10 @@ func TestModelViewEdgeCases(t *testing.T) {
 		historyManager.AddItem("")
 
 		view := model.View()
+		viewStr := view.Content
 
 		// Should show the empty item in table format
-		if !contains(view, "1") { // Should show row number 1
+		if !contains(viewStr, "1") { // Should show row number 1
 			t.Error("Should show empty string item in table")
 		}
 	})
@@ -139,9 +145,10 @@ func TestModelViewEdgeCases(t *testing.T) {
 		historyManager.AddItem("   \t   ")
 
 		view := model.View()
+		viewStr := view.Content
 
 		// Should preserve whitespace (converted to spaces in table)
-		if !contains(view, "       ") { // Whitespace should be preserved as spaces
+		if !contains(viewStr, "       ") { // Whitespace preserved as spaces
 			t.Error("Should preserve whitespace in display")
 		}
 	})
@@ -160,7 +167,8 @@ func TestModelCursorBoundaryConditions(t *testing.T) {
 		}
 
 		view := model.View()
-		if !contains(view, "No clipboard history yet...") {
+		viewStr := view.Content
+		if !contains(viewStr, "No clipboard history yet...") {
 			t.Error("Should show empty history message")
 		}
 	})
@@ -179,7 +187,7 @@ func TestModelCursorBoundaryConditions(t *testing.T) {
 		initialCursor := model.GetCursor()
 
 		// Try moving up (should stay at 0)
-		upMsg := tea.KeyMsg{Type: tea.KeyUp}
+		upMsg := tea.KeyPressMsg(tea.Key{Code: tea.KeyUp})
 		updatedModel, _ := model.Update(upMsg)
 		model = updatedModel.(Model)
 
@@ -188,7 +196,7 @@ func TestModelCursorBoundaryConditions(t *testing.T) {
 		}
 
 		// Try moving down (should stay at 0 since there's only one item)
-		downMsg := tea.KeyMsg{Type: tea.KeyDown}
+		downMsg := tea.KeyPressMsg(tea.Key{Code: tea.KeyDown})
 		updatedModel, _ = model.Update(downMsg)
 		model = updatedModel.(Model)
 
@@ -223,7 +231,7 @@ func TestModelLargeDatasets(t *testing.T) {
 		for i := 0; i < 5 && i < actualCount; i++ {
 			// Move cursor to position i using down key presses
 			for j := model.GetCursor(); j < i; j++ {
-				downMsg := tea.KeyMsg{Type: tea.KeyDown}
+				downMsg := tea.KeyPressMsg(tea.Key{Code: tea.KeyDown})
 				updatedModel, _ := model.Update(downMsg)
 				model = updatedModel.(Model)
 			}
@@ -231,12 +239,12 @@ func TestModelLargeDatasets(t *testing.T) {
 			view := model.View()
 
 			// View should render without issues
-			if len(view) == 0 {
+			if len(view.Content) == 0 {
 				t.Errorf("View should not be empty with cursor at position %d", i)
 			}
 
 			// Should contain some of the items
-			if !contains(view, fmt.Sprintf("unique item content %d", i)) {
+			if !contains(view.Content, fmt.Sprintf("unique item content %d", i)) {
 				t.Errorf("Should show item at position %d", i)
 			}
 		}
@@ -286,8 +294,8 @@ func TestModelSpecialCharacters(t *testing.T) {
 			model.UpdateTable() // Update table with new items
 			view := model.View()
 
-			if !contains(view, tc.expected) {
-				t.Errorf("Expected %q in view, got: %s", tc.expected, view)
+			if !contains(view.Content, tc.expected) {
+				t.Errorf("Expected %q in view, got: %s", tc.expected, view.Content)
 			}
 		})
 	}

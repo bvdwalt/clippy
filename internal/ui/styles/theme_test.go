@@ -3,7 +3,7 @@ package styles
 import (
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 func TestDefaultTheme(t *testing.T) {
@@ -110,17 +110,17 @@ func TestDefaultTableTheme(t *testing.T) {
 	}
 
 	// Test specific color values
-	expectedHeaderBorderColor := lipgloss.Color("240")
+	expectedHeaderBorderColor := "240"
 	if tableTheme.HeaderBorderColor != expectedHeaderBorderColor {
 		t.Errorf("Expected HeaderBorderColor to be %v, got %v", expectedHeaderBorderColor, tableTheme.HeaderBorderColor)
 	}
 
-	expectedSelectedFg := lipgloss.Color("229")
+	expectedSelectedFg := "229"
 	if tableTheme.SelectedFg != expectedSelectedFg {
 		t.Errorf("Expected SelectedFg to be %v, got %v", expectedSelectedFg, tableTheme.SelectedFg)
 	}
 
-	expectedSelectedBg := lipgloss.Color("57")
+	expectedSelectedBg := "57"
 	if tableTheme.SelectedBg != expectedSelectedBg {
 		t.Errorf("Expected SelectedBg to be %v, got %v", expectedSelectedBg, tableTheme.SelectedBg)
 	}
@@ -195,9 +195,9 @@ func TestThemeStructCreation(t *testing.T) {
 
 func TestTableThemeStructCreation(t *testing.T) {
 	// Test manual creation of TableTheme struct
-	headerColor := lipgloss.Color("100")
-	selectedFg := lipgloss.Color("200")
-	selectedBg := lipgloss.Color("50")
+	headerColor := "100"
+	selectedFg := "200"
+	selectedBg := "50"
 
 	tableTheme := TableTheme{
 		HeaderBorderColor: headerColor,
@@ -225,9 +225,9 @@ func TestThemeColorsAreValid(t *testing.T) {
 
 	// These should not panic when used with lipgloss
 	testStyle := lipgloss.NewStyle().
-		BorderForeground(tableTheme.HeaderBorderColor).
-		Foreground(tableTheme.SelectedFg).
-		Background(tableTheme.SelectedBg)
+		BorderForeground(lipgloss.Color(tableTheme.HeaderBorderColor)).
+		Foreground(lipgloss.Color(tableTheme.SelectedFg)).
+		Background(lipgloss.Color(tableTheme.SelectedBg))
 
 	// Test that the style can render without errors
 	result := testStyle.Render("test")
@@ -322,17 +322,17 @@ func TestTableThemeColorValues(t *testing.T) {
 	tableTheme := DefaultTableTheme()
 
 	// Test color string representations
-	headerColorStr := string(tableTheme.HeaderBorderColor)
+	headerColorStr := tableTheme.HeaderBorderColor
 	if headerColorStr != "240" {
 		t.Errorf("Expected HeaderBorderColor to be '240', got %q", headerColorStr)
 	}
 
-	selectedFgStr := string(tableTheme.SelectedFg)
+	selectedFgStr := tableTheme.SelectedFg
 	if selectedFgStr != "229" {
 		t.Errorf("Expected SelectedFg to be '229', got %q", selectedFgStr)
 	}
 
-	selectedBgStr := string(tableTheme.SelectedBg)
+	selectedBgStr := tableTheme.SelectedBg
 	if selectedBgStr != "57" {
 		t.Errorf("Expected SelectedBg to be '57', got %q", selectedBgStr)
 	}

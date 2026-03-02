@@ -3,15 +3,15 @@ package ui
 import (
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // TickMsg is sent periodically to check for new clipboard content
 type TickMsg time.Time
 
-// Tick returns a command that sends a TickMsg every 2 seconds
+// Tick returns a command that sends a TickMsg every 500ms
 func Tick() tea.Cmd {
-	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+	return tea.Tick(500*time.Millisecond, func(t time.Time) tea.Msg {
 		return TickMsg(t)
 	})
 }

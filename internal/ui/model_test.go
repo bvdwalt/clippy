@@ -1,10 +1,12 @@
 package ui
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestNewModel(t *testing.T) {
@@ -66,7 +68,7 @@ func TestModelUpdateKeyMessages(t *testing.T) {
 		}
 
 		// Simulate down key press to move cursor
-		downMsg := tea.KeyMsg{Type: tea.KeyDown}
+		downMsg := tea.KeyPressMsg(tea.Key{Code: tea.KeyDown})
 		updatedModel, _ := model.Update(downMsg)
 		model = updatedModel.(Model)
 
@@ -75,7 +77,7 @@ func TestModelUpdateKeyMessages(t *testing.T) {
 		}
 
 		// Simulate up key press to move cursor back
-		upMsg := tea.KeyMsg{Type: tea.KeyUp}
+		upMsg := tea.KeyPressMsg(tea.Key{Code: tea.KeyUp})
 		updatedModel, _ = model.Update(upMsg)
 		model = updatedModel.(Model)
 
@@ -145,8 +147,9 @@ func TestModelView(t *testing.T) {
 
 	// Test empty history
 	view := model.View()
-	if !contains(view, "No clipboard history yet...") {
-		t.Errorf("Expected empty view to contain 'No clipboard history yet...', got:\n%s", view)
+	viewStr := view.Content
+	if !contains(viewStr, "No clipboard history yet...") {
+		t.Errorf("Expected empty view to contain 'No clipboard history yet...', got:\n%s", viewStr)
 	}
 
 	// Test with items
@@ -155,6 +158,7 @@ func TestModelView(t *testing.T) {
 	model.UpdateTable() // Update table with new items
 
 	view = model.View()
+	viewStr = view.Content
 
 	// Check that view contains expected elements (table format)
 	expectedContents := []string{
@@ -165,88 +169,84 @@ func TestModelView(t *testing.T) {
 	}
 
 	for _, expected := range expectedContents {
-		if !contains(view, expected) {
-			t.Errorf("Expected view to contain %q, got:\n%s", expected, view)
+		if !contains(viewStr, expected) {
+			t.Errorf("Expected view to contain %q, got:\n%s", expected, viewStr)
 		}
 	}
 }
 
 func TestModelViewLongContent(t *testing.T) {
+	// ...existing code, but change view uses to view.Content
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
 	model := NewModel(historyManager)
 
-	// Add an item longer than 60 characters
 	longContent := "This is a very long piece of content that should be truncated when displayed in the UI because it exceeds sixty characters"
 	historyManager.AddItem(longContent)
-	model.UpdateTable() // Update table with new items
+	model.UpdateTable()
 
 	view := model.View()
+	viewStr := view.Content
 
-	// Should be truncated to 57 chars + "..." (content longer than 60 chars)
 	expectedTruncated := longContent[:57] + "..."
-	if !contains(view, expectedTruncated) {
+	if !contains(viewStr, expectedTruncated) {
 		t.Errorf("Expected view to contain truncated content %q", expectedTruncated)
 	}
 
-	// Should not contain the full long content
-	if contains(view, longContent) {
+	if contains(viewStr, longContent) {
 		t.Error("View should not contain full long content")
 	}
 }
 
 func TestModelViewNewlineReplacement(t *testing.T) {
+	// ...existing code with view.Content
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
 	model := NewModel(historyManager)
 
-	// Add content with newlines
 	contentWithNewlines := "line1\nline2\nline3"
 	historyManager.AddItem(contentWithNewlines)
-	model.UpdateTable() // Update table with new items
+	model.UpdateTable()
 
 	view := model.View()
+	viewStr := view.Content
 
-	// Newlines should be replaced with spaces
 	expectedReplaced := "line1 line2 line3"
-	if !contains(view, expectedReplaced) {
+	if !contains(viewStr, expectedReplaced) {
 		t.Errorf("Expected view to contain %q with newlines replaced", expectedReplaced)
 	}
 
-	// Should not contain actual newlines in content
-	if contains(view, "line1\nline2") {
+	if contains(viewStr, "line1\nline2") {
 		t.Error("View should not contain literal newlines in content")
 	}
 }
 
 func TestModelViewCursorMovement(t *testing.T) {
+	// ...existing code, change view to view.Content
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
 	model := NewModel(historyManager)
 
-	// Add multiple items
 	items := []string{"item1", "item2", "item3"}
 	for _, item := range items {
 		historyManager.AddItem(item)
 	}
-	model.UpdateTable() // Update table with new items
+	model.UpdateTable()
 
-	// Test that view renders with items
 	view := model.View()
+	viewStr := view.Content
 
-	// Check that all items appear in the table
 	for _, item := range items {
-		if !contains(view, item) {
+		if !contains(viewStr, item) {
 			t.Errorf("Expected view to contain item %q", item)
 		}
 	}
 
 	// Test cursor movement through key events
-	downMsg := tea.KeyMsg{Type: tea.KeyDown}
+	downMsg := tea.KeyPressMsg(tea.Key{Code: tea.KeyDown})
 	updatedModel, _ := model.Update(downMsg)
 	model = updatedModel.(Model)
 
-	// Verify cursor moved
 	if model.GetCursor() == 0 && len(items) > 1 {
 		t.Error("Expected cursor to move down from initial position")
 	}
@@ -294,18 +294,14 @@ func TestModelUnknownKeyMessage(t *testing.T) {
 	defer cleanup()
 	model := NewModel(historyManager)
 
-	// For testing unknown keys, we'll focus on testing that
-	// the model remains in a valid state regardless of input
-
 	initialHeight := model.height
 	initialManager := model.historyManager
 
-	// Test with an unknown key message
-	unknownMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}}
+	// Test with an unknown key message (use KeyPressMsg with Text)
+	unknownMsg := tea.KeyPressMsg(tea.Key{Text: "x"})
 	updatedModel, _ := model.Update(unknownMsg)
 	model = updatedModel.(Model)
 
-	// Verify model state remains consistent
 	if model.height != initialHeight {
 		t.Error("Model height should remain unchanged for unknown operations")
 	}
@@ -314,18 +310,28 @@ func TestModelUnknownKeyMessage(t *testing.T) {
 	}
 }
 
-// Helper function to check if a string contains a substring
-func contains(s, substr string) bool {
+// Helper function to check if a string (or tea.View) contains a substring
+func contains(hay any, substr string) bool {
+	var s string
+	switch v := hay.(type) {
+	case string:
+		s = v
+	case tea.View:
+		s = v.Content
+	default:
+		return false
+	}
+
 	if len(substr) == 0 {
 		return true
 	}
 	if len(s) < len(substr) {
 		return false
 	}
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
+
+	// Strip ANSI escape sequences (lipgloss output) so tests can match plain text
+	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	s = re.ReplaceAllString(s, "")
+
+	return strings.Contains(s, substr)
 }

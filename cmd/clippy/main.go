@@ -2,25 +2,14 @@ package main
 
 import (
 	"log"
-	"os"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/bvdwalt/clippy/internal/history"
 	"github.com/bvdwalt/clippy/internal/ui"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
-	// Redirect stderr to suppress wl-clipboard messages
-	logFile, err := os.OpenFile("/dev/null", os.O_WRONLY, 0)
-	if err == nil {
-		log.SetOutput(logFile)
-		defer func() {
-			if err := logFile.Close(); err != nil {
-				log.Printf("Failed to close log file: %v", err)
-			}
-		}()
-	}
-
+	// Create history manager
 	historyManager, err := history.NewManager()
 	if err != nil {
 		log.Fatalf("Failed to create history manager: %v", err)
