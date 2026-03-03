@@ -39,7 +39,6 @@ type Model struct {
 func NewModel(historyManager *history.Manager) Model {
 	ti := textinput.New()
 	ti.Placeholder = "Search clipboard history..."
-	ti.Focus()
 	ti.CharLimit = 50
 	ti.SetWidth(50)
 
@@ -225,6 +224,8 @@ func (m Model) View() tea.View {
 				m.theme.Help.Render("Press Enter to search, Esc to cancel")))
 		content.WriteString(searchBox + "\n")
 		v := tea.NewView(m.theme.Doc.Render(content.String()))
+		v.AltScreen = true
+		v.WindowTitle = "Clippy"
 		return v
 	}
 
@@ -257,17 +258,14 @@ func (m Model) View() tea.View {
 	content.WriteString(m.theme.Help.Render(help))
 
 	v := tea.NewView(m.theme.Doc.Render(content.String()))
+	v.AltScreen = true
+	v.WindowTitle = "Clippy"
 	return v
 }
 
 // GetCursor returns the current cursor position for testing
 func (m Model) GetCursor() int {
 	return m.tableManager.GetCursor()
-}
-
-// SetCursor sets the cursor position for testing
-func (m *Model) SetCursor(pos int) {
-	// Placeholder for test compatibility
 }
 
 // UpdateTable is a public wrapper for updateTable for testing purposes
