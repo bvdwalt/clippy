@@ -5,10 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/table"
 	"github.com/bvdwalt/clippy/internal/history"
 	"github.com/bvdwalt/clippy/internal/ui/styles"
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/lipgloss"
 )
 
 func TestNewManager(t *testing.T) {
@@ -38,9 +37,9 @@ func TestNewManager(t *testing.T) {
 
 func TestNewManagerWithCustomTheme(t *testing.T) {
 	customTheme := styles.TableTheme{
-		HeaderBorderColor: lipgloss.Color("100"),
-		SelectedFg:        lipgloss.Color("200"),
-		SelectedBg:        lipgloss.Color("50"),
+		HeaderBorderColor: "100",
+		SelectedFg:        "200",
+		SelectedBg:        "50",
 	}
 
 	manager := NewManager(customTheme)
@@ -85,21 +84,21 @@ func TestUpdateRows(t *testing.T) {
 		}
 
 		manager.UpdateRows(items)
-		view := manager.View()
-
-		// Should contain the item content
-		if !strings.Contains(view, "test content") {
-			t.Error("Expected view to contain item content")
+		// Verify internal rows directly
+		rows := manager.GetTable().Rows()
+		if len(rows) != 1 {
+			t.Fatalf("Expected 1 row, got %d", len(rows))
 		}
-
-		// Should contain the row number
-		if !strings.Contains(view, "1") {
-			t.Error("Expected view to contain row number")
+		row := rows[0]
+		// row[0] = number, row[1] = content, row[2] = count, row[3] = timestamp
+		if row[1] != "test content" {
+			t.Errorf("Expected content 'test content', got %q", row[1])
 		}
-
-		// Should contain formatted timestamp
-		if !strings.Contains(view, "2023-10-13 12:00:00") {
-			t.Error("Expected view to contain formatted timestamp")
+		if row[0] != "1" {
+			t.Errorf("Expected row number '1', got %q", row[0])
+		}
+		if row[3] != "2023-10-13 12:00:00" {
+			t.Errorf("Expected timestamp '2023-10-13 12:00:00', got %q", row[3])
 		}
 	})
 
@@ -196,10 +195,13 @@ func TestUpdateRowsContentFormatting(t *testing.T) {
 			}
 
 			manager.UpdateRows(items)
-			view := manager.View()
-
-			if !strings.Contains(view, tc.expectedContent) {
-				t.Errorf("Expected view to contain %q, got view: %s", tc.expectedContent, view)
+			// Verify internal rows directly
+			rows := manager.GetTable().Rows()
+			if len(rows) == 0 {
+				t.Fatal("Expected at least one row")
+			}
+			if rows[0][1] != tc.expectedContent {
+				t.Errorf("Expected formatted content %q, got %q", tc.expectedContent, rows[0][1])
 			}
 		})
 	}
@@ -372,8 +374,13 @@ func TestView(t *testing.T) {
 			t.Error("Expected view to contain item content")
 		}
 
-		if !strings.Contains(view, "2023-10-13 12:00:00") {
-			t.Error("Expected view to contain formatted timestamp")
+		// Verify timestamp from internal rows
+		rows := manager.GetTable().Rows()
+		if len(rows) == 0 {
+			t.Fatal("Expected at least one row")
+		}
+		if rows[0][3] != "2023-10-13 12:00:00" {
+			t.Errorf("Expected timestamp '2023-10-13 12:00:00', got %q", rows[0][3])
 		}
 	})
 }
@@ -389,8 +396,7 @@ func TestGetSetTable(t *testing.T) {
 	}
 
 	// Test SetTable
-	newTable := table.New()
-	manager.SetTable(newTable)
+	manager.SetTable(new(table.New()))
 
 	retrievedTable := manager.GetTable()
 	// Note: We can't directly compare table.Model instances for equality,
@@ -499,10 +505,13 @@ func TestManagerTimestampFormatting(t *testing.T) {
 			}
 
 			manager.UpdateRows(items)
-			view := manager.View()
-
-			if !strings.Contains(view, tc.expected) {
-				t.Errorf("Expected view to contain timestamp %q, got view: %s", tc.expected, view)
+			// Verify timestamp from internal rows
+			rows := manager.GetTable().Rows()
+			if len(rows) == 0 {
+				t.Fatal("Expected at least one row")
+			}
+			if rows[0][3] != tc.expected {
+				t.Errorf("Expected timestamp %q, got %q", tc.expected, rows[0][3])
 			}
 		})
 	}

@@ -1,6 +1,9 @@
 package styles
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"charm.land/bubbles/v2/table"
+	"charm.land/lipgloss/v2"
+)
 
 type Theme struct {
 	Doc    lipgloss.Style
@@ -31,15 +34,31 @@ func DefaultTheme() Theme {
 }
 
 type TableTheme struct {
-	HeaderBorderColor lipgloss.Color
-	SelectedFg        lipgloss.Color
-	SelectedBg        lipgloss.Color
+	HeaderBorderColor string
+	SelectedFg        string
+	SelectedBg        string
 }
 
 func DefaultTableTheme() TableTheme {
 	return TableTheme{
-		HeaderBorderColor: lipgloss.Color("240"),
-		SelectedFg:        lipgloss.Color("229"),
-		SelectedBg:        lipgloss.Color("57"),
+		HeaderBorderColor: "240",
+		SelectedFg:        "229",
+		SelectedBg:        "57",
 	}
+}
+
+// TableStyles converts a TableTheme into a bubbles table.Styles value,
+// performing lipgloss.Color conversions in one place.
+func TableStyles(t TableTheme) table.Styles {
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color(t.HeaderBorderColor)).
+		BorderBottom(true).
+		Bold(false)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color(t.SelectedFg)).
+		Background(lipgloss.Color(t.SelectedBg)).
+		Bold(false)
+	return s
 }

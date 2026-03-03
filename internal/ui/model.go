@@ -5,13 +5,13 @@ import (
 	"log"
 	"strings"
 
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
 	"github.com/bvdwalt/clippy/internal/history"
 	"github.com/bvdwalt/clippy/internal/search"
 	"github.com/bvdwalt/clippy/internal/ui/styles"
 	"github.com/bvdwalt/clippy/internal/ui/table"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // ViewMode represents the current view mode
@@ -39,9 +39,8 @@ type Model struct {
 func NewModel(historyManager *history.Manager) Model {
 	ti := textinput.New()
 	ti.Placeholder = "Search clipboard history..."
-	ti.Focus()
 	ti.CharLimit = 50
-	ti.Width = 50
+	ti.SetWidth(50)
 
 	theme := styles.DefaultTheme()
 	tableTheme := styles.DefaultTableTheme()
@@ -88,10 +87,7 @@ func (m *Model) filterItems(query string) {
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(
-		Tick(),
-		tea.EnterAltScreen,
-	)
+	return Tick()
 }
 
 // Update handles messages and updates the model
@@ -109,7 +105,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.mode == TableView {
 				m.mode = SearchView
 				m.textInput.Focus()
-				return m, textinput.Blink
+				return m, nil
 			}
 		case "esc":
 			// Exit search mode
@@ -185,9 +181,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateTable()
 			default:
 				// Handle table navigation (arrow keys, etc.)
-				table := m.tableManager.GetTable()
-				updatedTable, cmd := table.Update(msg)
-				m.tableManager.SetTable(updatedTable)
+				tbl := m.tableManager.GetTable()
+				updatedTable, cmd := tbl.Update(msg)
+				m.tableManager.SetTable(&updatedTable)
 				return m, cmd
 			}
 		}
@@ -213,7 +209,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the UI
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	var content strings.Builder
 
 	// Title
@@ -227,7 +223,10 @@ func (m Model) View() string {
 				m.textInput.View(),
 				m.theme.Help.Render("Press Enter to search, Esc to cancel")))
 		content.WriteString(searchBox + "\n")
-		return m.theme.Doc.Render(content.String())
+		v := tea.NewView(m.theme.Doc.Render(content.String()))
+		v.AltScreen = true
+		v.WindowTitle = "Clippy"
+		return v
 	}
 
 	// Table view
@@ -250,25 +249,23 @@ func (m Model) View() string {
 		status = fmt.Sprintf("Total items: %d", len(items))
 	}
 
-	help := "Keys: ↑/k ↓/j navigate • Enter/c copy • d delete • / search • r refresh • q quit"
+	help := "Keys: \u2191/k \u2193/j navigate \u2022 Enter/c copy \u2022 d delete \u2022 / search \u2022 r refresh \u2022 q quit"
 	if m.filtered != nil {
-		help += " • esc clear search"
+		help += " \u2022 esc clear search"
 	}
 
 	content.WriteString("\n" + status + "\n")
 	content.WriteString(m.theme.Help.Render(help))
 
-	return m.theme.Doc.Render(content.String())
+	v := tea.NewView(m.theme.Doc.Render(content.String()))
+	v.AltScreen = true
+	v.WindowTitle = "Clippy"
+	return v
 }
 
 // GetCursor returns the current cursor position for testing
 func (m Model) GetCursor() int {
 	return m.tableManager.GetCursor()
-}
-
-// SetCursor sets the cursor position for testing
-func (m *Model) SetCursor(pos int) {
-	// Placeholder for test compatibility
 }
 
 // UpdateTable is a public wrapper for updateTable for testing purposes

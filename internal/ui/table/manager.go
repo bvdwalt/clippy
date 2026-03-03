@@ -4,16 +4,16 @@ import (
 	"strconv"
 	"strings"
 
+	"charm.land/bubbles/v2/table"
 	"github.com/bvdwalt/clippy/internal/history"
 	"github.com/bvdwalt/clippy/internal/ui/styles"
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // Manager handles table creation and updates
 type Manager struct {
-	table table.Model
-	theme styles.TableTheme
+	table     *table.Model
+	theme     styles.TableTheme
+	lastItems []history.ClipboardHistory // lastItems holds the items currently displayed (for stable selection)
 }
 
 // NewManager creates a new table manager
@@ -28,38 +28,45 @@ func NewManager(theme styles.TableTheme) *Manager {
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithFocused(true),
-		table.WithHeight(10),
+		table.WithHeight(20),
+		table.WithWidth(80),
 	)
 
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(theme.HeaderBorderColor).
-		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(theme.SelectedFg).
-		Background(theme.SelectedBg).
-		Bold(false)
+	// Use centralized conversion for table styles
+	s := styles.TableStyles(theme)
+	// table.New returns a value; take its address to use pointer receivers
 	t.SetStyles(s)
-
 	return &Manager{
-		table: t,
-		theme: theme,
+		table:     &t,
+		theme:     theme,
+		lastItems: nil,
 	}
 }
 
 // GetTable returns the underlying table model
-func (tm *Manager) GetTable() table.Model {
+func (tm *Manager) GetTable() *table.Model {
 	return tm.table
 }
 
-func (tm *Manager) SetTable(t table.Model) {
+func (tm *Manager) SetTable(t *table.Model) {
+	// When replacing the underlying table, clear lastItems to avoid mismatches
 	tm.table = t
+	tm.lastItems = nil
 }
 
 // UpdateRows updates the table with clipboard history items
 func (tm *Manager) UpdateRows(items []history.ClipboardHistory) {
+	if tm.table == nil {
+		return
+	}
+
+	// Capture previous selected item's hash for stable selection
+	prevCursor := tm.table.Cursor()
+	var prevHash string
+	if prevCursor >= 0 && tm.lastItems != nil && prevCursor < len(tm.lastItems) {
+		prevHash = tm.lastItems[prevCursor].Hash
+	}
+
 	rows := make([]table.Row, len(items))
 	for i, item := range items {
 		content := item.Item
@@ -80,19 +87,74 @@ func (tm *Manager) UpdateRows(items []history.ClipboardHistory) {
 		}
 	}
 
+	// Update stored items before restoring selection so we can search the new list
+	tm.lastItems = make([]history.ClipboardHistory, len(items))
+	copy(tm.lastItems, items)
+
+	// Apply rows to table
 	tm.table.SetRows(rows)
-	// Reset cursor to 0 after setting rows
-	tm.table.SetCursor(0)
+
+	// Restore selection by hash if possible, otherwise clamp previous cursor
+	if prevHash != "" {
+		found := -1
+		for i, it := range items {
+			if it.Hash == prevHash {
+				found = i
+				break
+			}
+		}
+		if found >= 0 {
+			tm.table.SetCursor(found)
+		} else {
+			// fallback: clamp prevCursor into range
+			if len(rows) == 0 {
+				tm.table.SetCursor(0)
+			} else {
+				if prevCursor < 0 {
+					prevCursor = 0
+				}
+				if prevCursor > len(rows)-1 {
+					prevCursor = len(rows) - 1
+				}
+				tm.table.SetCursor(prevCursor)
+			}
+		}
+	} else {
+		// No previous hash: just clamp prevCursor
+		if len(rows) == 0 {
+			tm.table.SetCursor(0)
+		} else {
+			if prevCursor < 0 {
+				prevCursor = 0
+			}
+			if prevCursor > len(rows)-1 {
+				prevCursor = len(rows) - 1
+			}
+			tm.table.SetCursor(prevCursor)
+		}
+	}
+
+	// Recompute viewport content after row updates.
+	tm.table.UpdateViewport()
 }
 
 // SetSize updates the table dimensions
 func (tm *Manager) SetSize(width, height int) {
+	if tm.table == nil {
+		return
+	}
+
 	tm.table.SetWidth(width - 4)
 	tm.table.SetHeight(height - 8)
+	// Ensure viewport matches the new size.
+	tm.table.UpdateViewport()
 }
 
 // GetCursor returns the current cursor position
 func (tm *Manager) GetCursor() int {
+	if tm.table == nil {
+		return 0
+	}
 	cursor := tm.table.Cursor()
 	if cursor < 0 {
 		return 0
@@ -102,5 +164,8 @@ func (tm *Manager) GetCursor() int {
 
 // View returns the table view
 func (tm *Manager) View() string {
+	if tm.table == nil {
+		return ""
+	}
 	return tm.table.View()
 }

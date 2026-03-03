@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/bvdwalt/clippy/internal/history"
 	"github.com/bvdwalt/clippy/internal/ui"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 	model := ui.NewModel(historyManager)
 
 	// Create the bubbletea program
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 
 	// Run the program
 	if _, err := p.Run(); err != nil {
