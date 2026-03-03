@@ -1,0 +1,45 @@
+version: 2
+
+project_name: clippy
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - main: ./cmd/clippy
+    binary: clippy
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  github:
+    owner: bvdwalt
+    name: clippy
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
