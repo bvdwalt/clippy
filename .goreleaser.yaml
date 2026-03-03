@@ -28,6 +28,15 @@ archives:
     files:
       - LICENSE
 
+brews:
+  - repository:
+      owner: bvdwalt
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/bvdwalt/clippy"
+    description: "Terminal clipboard history manager"
+    license: "MIT"
+
 checksum:
   name_template: checksums.txt
 
