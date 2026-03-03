@@ -15,6 +15,8 @@ jobs:
 
       - name: Set up Go
         uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
 
       - name: Install just
         uses: extractions/setup-just@v2
@@ -26,7 +28,7 @@ jobs:
         run: go build -v ./...
 
       - name: Format
-        run: go fmt ./...
+        run: just fmt
 
       - name: Test
         run: just test-coverage
