@@ -28,7 +28,7 @@ archives:
     files:
       - LICENSE
 
-brews:
+homebrew_casks:
   - repository:
       owner: bvdwalt
       name: homebrew-tap
