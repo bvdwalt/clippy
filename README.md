@@ -24,6 +24,12 @@ A lightweight terminal-based clipboard history manager, built with Go and the Bu
 - MacOS
 - Linux with X11 or Wayland (uses `xclip` or `wl-clipboard`)
 
+### Homebrew (macOS / Linux)
+
+```bash
+brew install --cask bvdwalt/tap/clippy
+```
+
 ### Install from source
 
 ```bash
