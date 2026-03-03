@@ -1,3 +1,4 @@
 /clippy
 /main
 /.idea/**
+/coverage.*
