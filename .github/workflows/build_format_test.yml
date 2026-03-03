@@ -16,6 +16,9 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
 
+      - name: Install just
+        uses: extractions/setup-just@v2
+
       - name: Install dependencies
         run: go mod download
 
@@ -26,4 +29,9 @@ jobs:
         run: go fmt ./...
 
       - name: Test
-        run: go test ./...
+        run: just test-coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.out
