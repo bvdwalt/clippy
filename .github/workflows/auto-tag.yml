@@ -36,6 +36,8 @@ jobs:
           NEXT=$(svu next)
           if [ "$NEXT" = "$CURRENT" ]; then
             echo "No version bump needed (current: $CURRENT)"
+          elif git tag -l "$NEXT" | grep -q "$NEXT"; then
+            echo "Tag $NEXT already exists, skipping"
           else
             git tag "$NEXT"
             git push origin "$NEXT"
