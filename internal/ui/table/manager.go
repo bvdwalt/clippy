@@ -11,9 +11,10 @@ import (
 
 // Manager handles table creation and updates
 type Manager struct {
-	table     *table.Model
-	theme     styles.TableTheme
-	lastItems []history.ClipboardHistory // lastItems holds the items currently displayed (for stable selection)
+	table        *table.Model
+	theme        styles.TableTheme
+	lastItems    []history.ClipboardHistory // lastItems holds the items currently displayed (for stable selection)
+	contentWidth int
 }
 
 // NewManager creates a new table manager
@@ -37,9 +38,10 @@ func NewManager(theme styles.TableTheme) *Manager {
 	// table.New returns a value; take its address to use pointer receivers
 	t.SetStyles(s)
 	return &Manager{
-		table:     &t,
-		theme:     theme,
-		lastItems: nil,
+		table:        &t,
+		theme:        theme,
+		lastItems:    nil,
+		contentWidth: 60,
 	}
 }
 
@@ -75,8 +77,8 @@ func (tm *Manager) UpdateRows(items []history.ClipboardHistory) {
 		content = strings.ReplaceAll(content, "\r", " ")
 		content = strings.ReplaceAll(content, "\t", " ")
 
-		if len(content) > 60 {
-			content = content[:57] + "..."
+		if tm.contentWidth > 3 && len(content) > tm.contentWidth {
+			content = content[:tm.contentWidth-3] + "..."
 		}
 
 		rows[i] = table.Row{
@@ -144,8 +146,23 @@ func (tm *Manager) SetSize(width, height int) {
 		return
 	}
 
-	tm.table.SetWidth(width - 4)
+	tableWidth := width - 4
+	contentWidth := tableWidth - 34 - 4
+	contentWidth = max(contentWidth, 20)
+	tm.contentWidth = contentWidth
+
+	tm.table.SetColumns([]table.Column{
+		{Title: "#", Width: 5},
+		{Title: "Content", Width: contentWidth},
+		{Title: "Count", Width: 10},
+		{Title: "Time", Width: 19},
+	})
+	tm.table.SetWidth(tableWidth)
 	tm.table.SetHeight(height - 8)
+
+	if tm.lastItems != nil {
+		tm.UpdateRows(tm.lastItems)
+	}
 	// Ensure viewport matches the new size.
 	tm.table.UpdateViewport()
 }
