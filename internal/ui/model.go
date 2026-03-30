@@ -31,6 +31,7 @@ type Model struct {
 	theme          styles.Theme
 	mode           ViewMode
 	filtered       []history.ClipboardHistory
+	lastClipboard  string
 	height         int
 	width          int
 }
@@ -163,6 +164,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						for i, item := range allItems {
 							if item.Hash == itemToDelete.Hash {
 								if m.historyManager.DeleteItem(i) {
+									m.lastClipboard = itemToDelete.Item
 									m.updateTable()
 								}
 								break
@@ -192,7 +194,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check for new clipboard content
 		content, err := clipboard.ReadAll()
 		if err == nil && len(content) > 0 {
-			m.historyManager.AddItem(content)
+			if content != m.lastClipboard {
+				m.historyManager.AddItem(content)
+				m.lastClipboard = content
+			}
 			m.updateTable()
 		}
 		return m, Tick()
