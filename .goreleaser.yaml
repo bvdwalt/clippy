@@ -28,7 +28,7 @@ archives:
     files:
       - LICENSE
 
-brews:
+homebrew_casks:
   - repository:
       owner: bvdwalt
       name: homebrew-tap
@@ -36,7 +36,10 @@ brews:
     homepage: "https://github.com/bvdwalt/clippy"
     description: "Terminal clipboard history manager"
     license: "MIT"
-    directory: Formula
+    hooks:
+      post:
+        install: |
+          system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/clippy"]
 
 checksum:
   name_template: checksums.txt
