@@ -41,6 +41,15 @@ func NewManager() (*Manager, error) {
 	return NewManagerWithPath(dbPath)
 }
 
+// NewInMemoryManager creates a history manager with no database backing.
+// Items are stored in memory only and are not persisted between runs.
+func NewInMemoryManager() *Manager {
+	return &Manager{
+		items:  make([]ClipboardHistory, 0),
+		hashes: make(map[string]struct{}),
+	}
+}
+
 // NewManagerWithPath creates a new history manager with a custom database path
 // This is useful for testing with isolated databases
 func NewManagerWithPath(dbPath string) (*Manager, error) {
@@ -66,23 +75,25 @@ func NewManagerWithPath(dbPath string) (*Manager, error) {
 
 // Close closes the database connection
 func (m *Manager) Close() error {
-	if m.dbClient != nil {
-		return m.dbClient.Close()
+	if m.dbClient == nil {
+		return nil
 	}
-	return nil
+	return m.dbClient.Close()
 }
 
 // AddItem adds a new clipboard item if it doesn't already exist
 func (m *Manager) AddItem(content string) bool {
 	item := newClipboardItem(content)
 	if !m.containsHash(item.Hash) {
-		entry := db.ClipboardEntry{
-			Content:   item.Item,
-			Hash:      item.Hash,
-			Timestamp: item.TimeStamp,
-		}
-		if err := m.dbClient.Insert(entry); err != nil {
-			return false
+		if m.dbClient != nil {
+			entry := db.ClipboardEntry{
+				Content:   item.Item,
+				Hash:      item.Hash,
+				Timestamp: item.TimeStamp,
+			}
+			if err := m.dbClient.Insert(entry); err != nil {
+				return false
+			}
 		}
 
 		m.items = append(m.items, item)
@@ -116,8 +127,10 @@ func (m *Manager) DeleteItem(index int) bool {
 	if index >= 0 && index < len(m.items) {
 		item := m.items[index]
 
-		if err := m.dbClient.Delete(item.Hash); err != nil {
-			return false
+		if m.dbClient != nil {
+			if err := m.dbClient.Delete(item.Hash); err != nil {
+				return false
+			}
 		}
 
 		delete(m.hashes, item.Hash)
@@ -134,6 +147,9 @@ func (m *Manager) Count() int {
 
 // LoadFromDB loads history from the SQLite database
 func (m *Manager) LoadFromDB() error {
+	if m.dbClient == nil {
+		return nil
+	}
 	entries, err := m.dbClient.LoadAll()
 	if err != nil {
 		return err
@@ -171,8 +187,10 @@ func newClipboardItem(content string) ClipboardHistory {
 func (m *Manager) IncrementItemCount(index int) error {
 	if index >= 0 && index < len(m.items) {
 		item := &m.items[index]
-		if err := m.dbClient.IncrementCount(item.Hash); err != nil {
-			return err
+		if m.dbClient != nil {
+			if err := m.dbClient.IncrementCount(item.Hash); err != nil {
+				return err
+			}
 		}
 		item.Count++
 		return nil
