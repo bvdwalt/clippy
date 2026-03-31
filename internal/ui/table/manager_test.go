@@ -598,6 +598,44 @@ func TestManagerEdgeCases(t *testing.T) {
 	})
 }
 
+func TestGetSelectedItem(t *testing.T) {
+	theme := styles.DefaultTableTheme()
+
+	t.Run("No items returns nil", func(t *testing.T) {
+		manager := NewManager(theme)
+		if item := manager.GetSelectedItem(); item != nil {
+			t.Errorf("Expected nil for empty manager, got %v", item)
+		}
+	})
+
+	t.Run("Returns item at cursor", func(t *testing.T) {
+		manager := NewManager(theme)
+		items := []history.ClipboardHistory{
+			{Item: "first", Hash: "hash1", TimeStamp: time.Now()},
+			{Item: "second", Hash: "hash2", TimeStamp: time.Now()},
+		}
+		manager.UpdateRows(items)
+
+		selected := manager.GetSelectedItem()
+		if selected == nil {
+			t.Fatal("Expected non-nil selected item")
+		}
+		if selected.Item != "first" {
+			t.Errorf("Expected 'first', got %q", selected.Item)
+		}
+		if selected.Hash != "hash1" {
+			t.Errorf("Expected hash 'hash1', got %q", selected.Hash)
+		}
+	})
+
+	t.Run("Nil table returns nil", func(t *testing.T) {
+		manager := &Manager{}
+		if item := manager.GetSelectedItem(); item != nil {
+			t.Errorf("Expected nil for nil table, got %v", item)
+		}
+	})
+}
+
 func TestManagerZeroValue(t *testing.T) {
 	// Test behavior with zero-value manager (should not panic)
 	var manager Manager
