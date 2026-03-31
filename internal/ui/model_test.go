@@ -289,6 +289,74 @@ func TestModelEnterKeyWithInvalidCursor(t *testing.T) {
 	}
 }
 
+func TestModelPreviewHeight(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+	model := NewModel(historyManager)
+
+	windowMsg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	newModel, _ := model.Update(windowMsg)
+	model = newModel.(Model)
+
+	// available = max(40-10, 6) = 30, previewH = max(30/3, 3) = 10
+	if model.previewHeight != 10 {
+		t.Errorf("Expected previewHeight 10, got %d", model.previewHeight)
+	}
+}
+
+func TestModelPreviewHeightSmallWindow(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+	model := NewModel(historyManager)
+
+	// Very small window: available = max(12-10, 6) = 6, previewH = max(6/3, 3) = 3
+	windowMsg := tea.WindowSizeMsg{Width: 80, Height: 12}
+	newModel, _ := model.Update(windowMsg)
+	model = newModel.(Model)
+
+	if model.previewHeight != 3 {
+		t.Errorf("Expected minimum previewHeight 3, got %d", model.previewHeight)
+	}
+}
+
+func TestModelPreviewPane(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("preview content here")
+	model := NewModel(historyManager)
+
+	// Trigger window resize to set previewHeight > 0
+	windowMsg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	newModel, _ := model.Update(windowMsg)
+	model = newModel.(Model)
+
+	view := model.View()
+
+	if !contains(view, "Preview") {
+		t.Error("Expected view to contain 'Preview' label")
+	}
+	if !contains(view, "preview content here") {
+		t.Error("Expected view to contain selected item content in preview pane")
+	}
+}
+
+func TestModelPreviewPaneNoSelection(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+	model := NewModel(historyManager)
+
+	windowMsg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	newModel, _ := model.Update(windowMsg)
+	model = newModel.(Model)
+
+	// No items — preview pane should still render without panicking
+	view := model.View()
+	if !contains(view, "Preview") {
+		t.Error("Expected 'Preview' label even with no items")
+	}
+}
+
 func TestModelUnknownKeyMessage(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
@@ -307,6 +375,257 @@ func TestModelUnknownKeyMessage(t *testing.T) {
 	}
 	if model.historyManager != initialManager {
 		t.Error("Model historyManager should remain unchanged for unknown operations")
+	}
+}
+
+func TestModelFilterItems(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("hello world")
+	historyManager.AddItem("foo bar")
+	historyManager.AddItem("hello go")
+
+	t.Run("Non-empty query sets filtered", func(t *testing.T) {
+		model := NewModel(historyManager)
+		model.filterItems("hello")
+
+		if model.filtered == nil {
+			t.Fatal("Expected filtered to be set after non-empty query")
+		}
+		for _, item := range model.filtered {
+			if !contains(item.Item, "hello") {
+				t.Errorf("Unexpected item in filtered results: %q", item.Item)
+			}
+		}
+	})
+
+	t.Run("Empty query clears filtered", func(t *testing.T) {
+		model := NewModel(historyManager)
+		model.filterItems("hello")
+		model.filterItems("")
+
+		if model.filtered != nil {
+			t.Error("Expected filtered to be nil after empty query")
+		}
+	})
+}
+
+func TestModelGetDisplayItems(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("item one")
+	historyManager.AddItem("item two")
+
+	t.Run("Returns all items when no filter", func(t *testing.T) {
+		model := NewModel(historyManager)
+		items := model.getDisplayItems()
+		if len(items) != 2 {
+			t.Errorf("Expected 2 items, got %d", len(items))
+		}
+	})
+
+	t.Run("Returns filtered items when filter set", func(t *testing.T) {
+		model := NewModel(historyManager)
+		model.filterItems("one")
+		items := model.getDisplayItems()
+		if len(items) != 1 {
+			t.Errorf("Expected 1 filtered item, got %d", len(items))
+		}
+		if items[0].Item != "item one" {
+			t.Errorf("Expected 'item one', got %q", items[0].Item)
+		}
+	})
+}
+
+func TestModelSearchModeToggle(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+	model := NewModel(historyManager)
+
+	if model.mode != TableView {
+		t.Fatal("Expected initial mode to be TableView")
+	}
+
+	// Press "/" to enter search mode
+	slashMsg := tea.KeyPressMsg(tea.Key{Text: "/"})
+	newModel, _ := model.Update(slashMsg)
+	model = newModel.(Model)
+
+	if model.mode != SearchView {
+		t.Error("Expected mode to be SearchView after pressing '/'")
+	}
+
+	// Press "esc" to exit search mode
+	escMsg := tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape})
+	newModel, _ = model.Update(escMsg)
+	model = newModel.(Model)
+
+	if model.mode != TableView {
+		t.Error("Expected mode to return to TableView after pressing 'esc'")
+	}
+	if model.filtered != nil {
+		t.Error("Expected filter to be cleared after pressing 'esc'")
+	}
+}
+
+func TestModelSearchModeTyping(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+	model := NewModel(historyManager)
+
+	// Enter search mode
+	slashMsg := tea.KeyPressMsg(tea.Key{Text: "/"})
+	newModel, _ := model.Update(slashMsg)
+	model = newModel.(Model)
+
+	// Type a character — should be handled by textInput
+	aMsg := tea.KeyPressMsg(tea.Key{Text: "a"})
+	newModel, _ = model.Update(aMsg)
+	model = newModel.(Model)
+
+	if model.mode != SearchView {
+		t.Error("Expected mode to remain SearchView while typing")
+	}
+}
+
+func TestModelSearchModeEnter(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("hello world")
+	historyManager.AddItem("foo bar")
+	model := NewModel(historyManager)
+
+	// Enter search mode
+	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "/"}))
+	model = newModel.(Model)
+
+	// Type a search term directly into the model's textInput
+	model.textInput.SetValue("hello")
+
+	// Press enter to apply the search
+	enterMsg := tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter})
+	newModel, _ = model.Update(enterMsg)
+	model = newModel.(Model)
+
+	if model.mode != TableView {
+		t.Error("Expected mode to return to TableView after search enter")
+	}
+	if model.filtered == nil {
+		t.Error("Expected filtered to be set after search enter")
+	}
+}
+
+func TestModelQuitKey(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+	model := NewModel(historyManager)
+
+	_, cmd := model.Update(tea.KeyPressMsg(tea.Key{Text: "q"}))
+	if cmd == nil {
+		t.Error("Expected quit command after pressing 'q'")
+	}
+}
+
+func TestModelDeleteKey(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("item to delete")
+	historyManager.AddItem("item to keep")
+	model := NewModel(historyManager)
+
+	initialCount := historyManager.Count()
+
+	dMsg := tea.KeyPressMsg(tea.Key{Text: "d"})
+	newModel, _ := model.Update(dMsg)
+	model = newModel.(Model)
+
+	if historyManager.Count() != initialCount-1 {
+		t.Errorf("Expected item count to decrease by 1, got %d (was %d)", historyManager.Count(), initialCount)
+	}
+	_ = model
+}
+
+func TestModelRefreshKey(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("some item")
+	model := NewModel(historyManager)
+
+	// Set a filter first
+	model.filterItems("some")
+	if model.filtered == nil {
+		t.Fatal("Expected filter to be set before refresh")
+	}
+
+	rMsg := tea.KeyPressMsg(tea.Key{Text: "r"})
+	newModel, _ := model.Update(rMsg)
+	model = newModel.(Model)
+
+	if model.filtered != nil {
+		t.Error("Expected filter to be cleared after 'r' refresh")
+	}
+	if model.mode != TableView {
+		t.Error("Expected mode to be TableView after refresh")
+	}
+}
+
+func TestModelViewSearchMode(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+	model := NewModel(historyManager)
+
+	// Switch to search mode
+	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "/"}))
+	model = newModel.(Model)
+
+	view := model.View()
+	if !contains(view, "Search") {
+		t.Error("Expected SearchView to contain 'Search'")
+	}
+	// Table should not be rendered in search mode
+	if contains(view, "Total items") {
+		t.Error("Expected table status line to be absent in SearchView")
+	}
+}
+
+func TestModelViewFilteredStatus(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("hello world")
+	historyManager.AddItem("hello go")
+	historyManager.AddItem("foo bar")
+	model := NewModel(historyManager)
+
+	// Apply a filter directly
+	model.filterItems("hello")
+	model.updateTable()
+
+	view := model.View()
+	if !contains(view, "Showing") {
+		t.Error("Expected filtered view to show 'Showing X of Y items'")
+	}
+}
+
+func TestModelViewNoResultsMessage(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("hello world")
+	model := NewModel(historyManager)
+
+	// Apply a filter that matches nothing
+	model.filterItems("zzznomatch")
+	model.updateTable()
+
+	view := model.View()
+	if !contains(view, "No results found") {
+		t.Error("Expected 'No results found' when filter matches nothing")
 	}
 }
 
