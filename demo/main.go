@@ -9,16 +9,7 @@ import (
 )
 
 func main() {
-	// Create a temporary history manager
-	historyManager, err := history.NewManager()
-	if err != nil {
-		log.Fatal("Failed to create history manager:", err)
-	}
-	defer func() {
-		if err := historyManager.Close(); err != nil {
-			log.Printf("Failed to close history manager: %v", err)
-		}
-	}()
+	historyManager := history.NewInMemoryManager()
 
 	// Add some sample data to demonstrate the enhanced UI
 	sampleData := []string{

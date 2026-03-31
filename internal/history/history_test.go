@@ -317,6 +317,93 @@ func TestLoadFromEmptyDB(t *testing.T) {
 	}
 }
 
+func TestNewInMemoryManager(t *testing.T) {
+	m := NewInMemoryManager()
+
+	if m == nil {
+		t.Fatal("NewInMemoryManager() returned nil")
+	}
+	if m.dbClient != nil {
+		t.Error("Expected dbClient to be nil for in-memory manager")
+	}
+	if m.Count() != 0 {
+		t.Errorf("Expected 0 items, got %d", m.Count())
+	}
+}
+
+func TestInMemoryManagerClose(t *testing.T) {
+	m := NewInMemoryManager()
+	if err := m.Close(); err != nil {
+		t.Errorf("Close() on in-memory manager should return nil, got: %v", err)
+	}
+}
+
+func TestInMemoryManagerLoadFromDB(t *testing.T) {
+	m := NewInMemoryManager()
+	if err := m.LoadFromDB(); err != nil {
+		t.Errorf("LoadFromDB() on in-memory manager should return nil, got: %v", err)
+	}
+	if m.Count() != 0 {
+		t.Errorf("Expected count 0 after LoadFromDB on in-memory manager, got %d", m.Count())
+	}
+}
+
+func TestInMemoryManagerAddItem(t *testing.T) {
+	m := NewInMemoryManager()
+
+	if !m.AddItem("hello") {
+		t.Error("Expected AddItem to return true for new item")
+	}
+	if !m.AddItem("world") {
+		t.Error("Expected AddItem to return true for second item")
+	}
+	if m.AddItem("hello") {
+		t.Error("Expected AddItem to return false for duplicate")
+	}
+	if m.Count() != 2 {
+		t.Errorf("Expected count 2, got %d", m.Count())
+	}
+}
+
+func TestInMemoryManagerDeleteItem(t *testing.T) {
+	m := NewInMemoryManager()
+	m.AddItem("a")
+	m.AddItem("b")
+	m.AddItem("c")
+
+	if !m.DeleteItem(1) {
+		t.Error("Expected DeleteItem(1) to return true")
+	}
+	if m.Count() != 2 {
+		t.Errorf("Expected count 2 after delete, got %d", m.Count())
+	}
+	item, ok := m.GetItem(1)
+	if !ok || item.Item != "c" {
+		t.Errorf("Expected item at index 1 to be 'c', got %q", item.Item)
+	}
+
+	if m.DeleteItem(10) {
+		t.Error("Expected DeleteItem(10) to return false for out-of-bounds index")
+	}
+}
+
+func TestInMemoryManagerIncrementItemCount(t *testing.T) {
+	m := NewInMemoryManager()
+	m.AddItem("hello")
+
+	if err := m.IncrementItemCount(0); err != nil {
+		t.Errorf("IncrementItemCount(0) returned error: %v", err)
+	}
+	item, _ := m.GetItem(0)
+	if item.Count != 1 {
+		t.Errorf("Expected count 1 after increment, got %d", item.Count)
+	}
+
+	if err := m.IncrementItemCount(99); err == nil {
+		t.Error("Expected error for out-of-bounds index")
+	}
+}
+
 func TestJSONMarshaling(t *testing.T) {
 	// Test that ClipboardHistory can be properly marshaled/unmarshaled
 	original := ClipboardHistory{
