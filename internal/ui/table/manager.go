@@ -158,7 +158,7 @@ func (tm *Manager) SetSize(width, height int) {
 		{Title: "Time", Width: 19},
 	})
 	tm.table.SetWidth(tableWidth)
-	tm.table.SetHeight(height - 8)
+	tm.table.SetHeight(height)
 
 	if tm.lastItems != nil {
 		tm.UpdateRows(tm.lastItems)
@@ -177,6 +177,19 @@ func (tm *Manager) GetCursor() int {
 		return 0
 	}
 	return cursor
+}
+
+// GetSelectedItem returns the currently selected clipboard item, or nil if none.
+func (tm *Manager) GetSelectedItem() *history.ClipboardHistory {
+	if tm.table == nil || len(tm.lastItems) == 0 {
+		return nil
+	}
+	cursor := tm.table.Cursor()
+	if cursor < 0 || cursor >= len(tm.lastItems) {
+		return nil
+	}
+	item := tm.lastItems[cursor]
+	return &item
 }
 
 // View returns the table view

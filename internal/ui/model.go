@@ -34,6 +34,7 @@ type Model struct {
 	lastClipboard  string
 	height         int
 	width          int
+	previewHeight  int
 }
 
 // NewModel creates a new UI model
@@ -206,8 +207,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.width = msg.Width
 
-		// Update table size
-		m.tableManager.SetSize(msg.Width, msg.Height)
+		// Split available height: ~2/3 table, ~1/3 preview.
+		// Overhead: title(2) + status(1) + help(2) + preview label(1) + preview borders(2) + doc margin(2) = 10
+		available := max(msg.Height-10, 6)
+		previewH := max(available/3, 3)
+		m.previewHeight = previewH
+		m.tableManager.SetSize(msg.Width, available-previewH)
 	}
 
 	return m, cmd
@@ -244,6 +249,17 @@ func (m Model) View() tea.View {
 		}
 	} else {
 		content.WriteString(m.tableManager.View() + "\n")
+	}
+
+	// Preview pane
+	if m.previewHeight > 0 {
+		previewContent := ""
+		if selected := m.tableManager.GetSelectedItem(); selected != nil {
+			previewContent = selected.Item
+		}
+		previewWidth := max(m.width-8, 10) // doc margin (4 each side) + border (1 each side) + padding (1 each side)
+		content.WriteString(m.theme.Help.Render("Preview") + "\n")
+		content.WriteString(m.theme.Preview.Width(previewWidth).Height(m.previewHeight).Render(previewContent) + "\n")
 	}
 
 	// Status and help

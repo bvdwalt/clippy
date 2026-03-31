@@ -6,10 +6,11 @@ import (
 )
 
 type Theme struct {
-	Doc    lipgloss.Style
-	Title  lipgloss.Style
-	Help   lipgloss.Style
-	Search lipgloss.Style
+	Doc     lipgloss.Style
+	Title   lipgloss.Style
+	Help    lipgloss.Style
+	Search  lipgloss.Style
+	Preview lipgloss.Style
 }
 
 func DefaultTheme() Theme {
@@ -30,6 +31,11 @@ func DefaultTheme() Theme {
 			BorderForeground(lipgloss.Color("62")).
 			Padding(1).
 			Width(50),
+
+		Preview: lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			Padding(0, 1),
 	}
 }
 
