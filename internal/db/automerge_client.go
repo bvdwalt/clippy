@@ -45,7 +45,9 @@ func NewAutomergeClient(path string) (*AutomergeClient, error) {
 		if err := doc.Path(docPathName).Set([]interface{}{}); err != nil {
 			return nil, fmt.Errorf("init document: %w", err)
 		}
-		doc.Commit("Initialised clippy document")
+		if _, err := doc.Commit("Initialised clippy document"); err != nil {
+			return nil, fmt.Errorf("init commit: %w", err)
+		}
 	}
 
 	return &AutomergeClient{doc: doc, path: path}, nil
@@ -85,7 +87,9 @@ func (c *AutomergeClient) Insert(entry ClipboardEntry) error {
 		return fmt.Errorf("inserting clip: %w", err)
 	}
 
-	c.doc.Commit(fmt.Sprintf("Add clip %s", entry.Hash[:8]))
+	if _, err := c.doc.Commit(fmt.Sprintf("Add clip %s", entry.Hash[:8])); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
 	return c.save()
 }
 
@@ -102,7 +106,9 @@ func (c *AutomergeClient) Delete(hash string) error {
 			if err := clippings.Delete(i); err != nil {
 				return fmt.Errorf("delete at index %d: %w", i, err)
 			}
-			c.doc.Commit(fmt.Sprintf("Delete clip %s", hash[:8]))
+			if _, err := c.doc.Commit(fmt.Sprintf("Delete clip %s", hash[:8])); err != nil {
+				return fmt.Errorf("commit: %w", err)
+			}
 			return c.save()
 		}
 	}
@@ -129,7 +135,9 @@ func (c *AutomergeClient) SetPinned(hash string, pinned bool) error {
 			if err := c.doc.Path(docPathName, i, "pinned").Set(pinned); err != nil {
 				return fmt.Errorf("set pinned: %w", err)
 			}
-			c.doc.Commit(fmt.Sprintf("Set pinned=%v for %s", pinned, hash[:8]))
+			if _, err := c.doc.Commit(fmt.Sprintf("Set pinned=%v for %s", pinned, hash[:8])); err != nil {
+				return fmt.Errorf("commit: %w", err)
+			}
 			return c.save()
 		}
 	}

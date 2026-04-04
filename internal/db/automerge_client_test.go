@@ -16,12 +16,18 @@ func setupClient(t *testing.T) (*AutomergeClient, string, func()) {
 	path := filepath.Join(dir, "test.automerge")
 	client, err := NewAutomergeClient(path)
 	if err != nil {
-		os.RemoveAll(dir)
+		if removeErr := os.RemoveAll(dir); removeErr != nil {
+			t.Logf("remove temp dir: %v", removeErr)
+		}
 		t.Fatalf("NewAutomergeClient: %v", err)
 	}
 	return client, path, func() {
-		client.Close()
-		os.RemoveAll(dir)
+		if err := client.Close(); err != nil {
+			t.Logf("close client: %v", err)
+		}
+		if err := os.RemoveAll(dir); err != nil {
+			t.Logf("remove temp dir: %v", err)
+		}
 	}
 }
 
@@ -51,7 +57,11 @@ func TestNewAutomergeClient_CorruptFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create temp dir: %v", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() {
+		if err := os.RemoveAll(dir); err != nil {
+			t.Logf("remove temp dir: %v", err)
+		}
+	}()
 
 	path := filepath.Join(dir, "corrupt.automerge")
 	if err := os.WriteFile(path, []byte("not valid automerge data"), 0644); err != nil {
@@ -120,7 +130,11 @@ func TestRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}
-	defer client2.Close()
+	defer func() {
+		if err := client2.Close(); err != nil {
+			t.Logf("close client2: %v", err)
+		}
+	}()
 
 	entries, err := client2.LoadAll()
 	if err != nil {
@@ -149,8 +163,12 @@ func TestDelete(t *testing.T) {
 	defer cleanup()
 
 	a, b := makeEntry("alpha"), makeEntry("beta")
-	client.Insert(a)
-	client.Insert(b)
+	if err := client.Insert(a); err != nil {
+		t.Fatalf("Insert a: %v", err)
+	}
+	if err := client.Insert(b); err != nil {
+		t.Fatalf("Insert b: %v", err)
+	}
 
 	if err := client.Delete(a.Hash); err != nil {
 		t.Fatalf("Delete: %v", err)
@@ -180,7 +198,9 @@ func TestSetPinned(t *testing.T) {
 	defer cleanup()
 
 	entry := makeEntry("pinme")
-	client.Insert(entry)
+	if err := client.Insert(entry); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
 
 	if err := client.SetPinned(entry.Hash, true); err != nil {
 		t.Fatalf("SetPinned true: %v", err)
@@ -226,7 +246,9 @@ func TestDecodeEntry_MissingPinnedField(t *testing.T) {
 	if err != nil {
 		t.Fatalf("insert raw entry: %v", err)
 	}
-	client.doc.Commit("legacy entry without pinned field")
+	if _, err := client.doc.Commit("legacy entry without pinned field"); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
 
 	entries, err := client.LoadAll()
 	if err != nil {
