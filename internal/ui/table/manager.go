@@ -83,7 +83,7 @@ func (tm *Manager) UpdateRows(items []history.ClipboardHistory) {
 
 		pin := ""
 		if item.Pinned {
-			pin = "[pin]"
+			pin = "📌"
 		}
 		rows[i] = table.Row{
 			strconv.Itoa(i + 1),
