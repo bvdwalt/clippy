@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/bvdwalt/clippy/internal/db"
@@ -90,6 +91,7 @@ func (m *Manager) AddItem(content string) bool {
 				Content:   item.Item,
 				Hash:      item.Hash,
 				Timestamp: item.TimeStamp,
+				Pinned:    item.Pinned,
 			}
 			if err := m.dbClient.Insert(entry); err != nil {
 				return false
@@ -163,14 +165,25 @@ func (m *Manager) LoadFromDB() error {
 			Item:      entry.Content,
 			Hash:      entry.Hash,
 			TimeStamp: entry.Timestamp,
-			Count:     entry.Count,
+			Pinned:    entry.Pinned,
 		}
 		m.items = append(m.items, item)
 		m.hashes[item.Hash] = struct{}{}
 		m.lastHash = item.Hash
 	}
 
+	sortItems(m.items)
 	return nil
+}
+
+// sortItems sorts in-place: pinned first, then by timestamp ascending.
+func sortItems(items []ClipboardHistory) {
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].Pinned != items[j].Pinned {
+			return items[i].Pinned
+		}
+		return items[i].TimeStamp.Before(items[j].TimeStamp)
+	})
 }
 
 // newClipboardItem creates a new clipboard history item
@@ -179,20 +192,21 @@ func newClipboardItem(content string) ClipboardHistory {
 		Item:      content,
 		Hash:      fmt.Sprintf("%x", sha256.Sum256([]byte(content))),
 		TimeStamp: time.Now(),
-		Count:     0,
 	}
 }
 
-// IncrementItemCount increments the copy count for an item by index
-func (m *Manager) IncrementItemCount(index int) error {
+// TogglePin toggles the pinned state for an item by index
+func (m *Manager) TogglePin(index int) error {
 	if index >= 0 && index < len(m.items) {
 		item := &m.items[index]
+		newPinned := !item.Pinned
 		if m.dbClient != nil {
-			if err := m.dbClient.IncrementCount(item.Hash); err != nil {
+			if err := m.dbClient.SetPinned(item.Hash, newPinned); err != nil {
 				return err
 			}
 		}
-		item.Count++
+		item.Pinned = newPinned
+		sortItems(m.items)
 		return nil
 	}
 	return fmt.Errorf("invalid index: %d", index)

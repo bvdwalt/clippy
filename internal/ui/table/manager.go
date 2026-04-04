@@ -22,7 +22,7 @@ func NewManager(theme styles.TableTheme) *Manager {
 	columns := []table.Column{
 		{Title: "#", Width: 5},
 		{Title: "Content", Width: 60},
-		{Title: "Count", Width: 10},
+		{Title: "Pin", Width: 5},
 		{Title: "Time", Width: 19},
 	}
 
@@ -81,10 +81,14 @@ func (tm *Manager) UpdateRows(items []history.ClipboardHistory) {
 			content = content[:tm.contentWidth-3] + "..."
 		}
 
+		pin := ""
+		if item.Pinned {
+			pin = "[pin]"
+		}
 		rows[i] = table.Row{
 			strconv.Itoa(i + 1),
 			content,
-			strconv.Itoa(item.Count),
+			pin,
 			item.TimeStamp.Format("2006-01-02 15:04:05"),
 		}
 	}
@@ -147,14 +151,14 @@ func (tm *Manager) SetSize(width, height int) {
 	}
 
 	tableWidth := width - 4
-	contentWidth := tableWidth - 34 - 4
+	contentWidth := tableWidth - 29 - 4
 	contentWidth = max(contentWidth, 20)
 	tm.contentWidth = contentWidth
 
 	tm.table.SetColumns([]table.Column{
 		{Title: "#", Width: 5},
 		{Title: "Content", Width: contentWidth},
-		{Title: "Count", Width: 10},
+		{Title: "Pin", Width: 5},
 		{Title: "Time", Width: 19},
 	})
 	tm.table.SetWidth(tableWidth)

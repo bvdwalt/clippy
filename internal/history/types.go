@@ -7,5 +7,5 @@ type ClipboardHistory struct {
 	Item      string    `json:"item"`
 	Hash      string    `json:"hash"`
 	TimeStamp time.Time `json:"timeStamp"`
-	Count     int       `json:"count"`
+	Pinned    bool      `json:"pinned"`
 }

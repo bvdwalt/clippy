@@ -42,7 +42,7 @@ func (c *AutomergeClient) Insert(entry ClipboardEntry) error {
 		"content":   entry.Content,
 		"hash":      entry.Hash,
 		"timestamp": entry.Timestamp.Format(time.RFC3339Nano),
-		"count":     float64(entry.Count),
+		"pinned":    entry.Pinned,
 	}
 
 	if err := clippings.Insert(length, clip); err != nil {
@@ -87,7 +87,7 @@ func (c *AutomergeClient) LoadAll() ([]ClipboardEntry, error) {
 		content, _ := automerge.As[string](c.doc.Path(docPathName, i, "content").Get())
 		hash, _ := automerge.As[string](c.doc.Path(docPathName, i, "hash").Get())
 		tsStr, _ := automerge.As[string](c.doc.Path(docPathName, i, "timestamp").Get())
-		count, _ := automerge.As[float64](c.doc.Path(docPathName, i, "count").Get())
+		pinned, _ := automerge.As[bool](c.doc.Path(docPathName, i, "pinned").Get())
 
 		ts, _ := time.Parse(time.RFC3339Nano, tsStr)
 
@@ -95,25 +95,24 @@ func (c *AutomergeClient) LoadAll() ([]ClipboardEntry, error) {
 			Content:   content,
 			Hash:      hash,
 			Timestamp: ts,
-			Count:     int(count),
+			Pinned:    pinned,
 		})
 	}
 
 	return entries, nil
 }
 
-func (c *AutomergeClient) IncrementCount(hash string) error {
+func (c *AutomergeClient) SetPinned(hash string, pinned bool) error {
 	clippings := c.doc.Path(docPathName).List()
 	length := clippings.Len()
 
 	for i := 0; i < length; i++ {
 		h, _ := automerge.As[string](c.doc.Path(docPathName, i, "hash").Get())
 		if h == hash {
-			currentCount, _ := automerge.As[float64](c.doc.Path(docPathName, i, "count").Get())
-			if err := c.doc.Path(docPathName, i, "count").Set(currentCount + 1); err != nil {
-				return fmt.Errorf("set count: %w", err)
+			if err := c.doc.Path(docPathName, i, "pinned").Set(pinned); err != nil {
+				return fmt.Errorf("set pinned: %w", err)
 			}
-			c.doc.Commit(fmt.Sprintf("Increment count for %s", hash[:8]))
+			c.doc.Commit(fmt.Sprintf("Set pinned=%v for %s", pinned, hash[:8]))
 			return c.save()
 		}
 	}

@@ -387,19 +387,27 @@ func TestInMemoryManagerDeleteItem(t *testing.T) {
 	}
 }
 
-func TestInMemoryManagerIncrementItemCount(t *testing.T) {
+func TestInMemoryManagerTogglePin(t *testing.T) {
 	m := NewInMemoryManager()
 	m.AddItem("hello")
 
-	if err := m.IncrementItemCount(0); err != nil {
-		t.Errorf("IncrementItemCount(0) returned error: %v", err)
+	if err := m.TogglePin(0); err != nil {
+		t.Errorf("TogglePin(0) returned error: %v", err)
 	}
 	item, _ := m.GetItem(0)
-	if item.Count != 1 {
-		t.Errorf("Expected count 1 after increment, got %d", item.Count)
+	if !item.Pinned {
+		t.Error("Expected item to be pinned after first toggle")
 	}
 
-	if err := m.IncrementItemCount(99); err == nil {
+	if err := m.TogglePin(0); err != nil {
+		t.Errorf("TogglePin(0) returned error: %v", err)
+	}
+	item, _ = m.GetItem(0)
+	if item.Pinned {
+		t.Error("Expected item to be unpinned after second toggle")
+	}
+
+	if err := m.TogglePin(99); err == nil {
 		t.Error("Expected error for out-of-bounds index")
 	}
 }
