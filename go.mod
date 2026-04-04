@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	github.com/automerge/automerge-go v0.0.0-20241030180337-6fb4f2d08244 // indirect
 	github.com/charmbracelet/colorprofile v0.4.2 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260223171050-89c142e4aa73 // indirect
 	github.com/charmbracelet/x/ansi v0.11.6 // indirect

@@ -17,6 +17,15 @@ type ClipboardEntry struct {
 	Count     int
 }
 
+// DBClient is the interface implemented by all persistence backends.
+type DBClient interface {
+	Insert(entry ClipboardEntry) error
+	Delete(hash string) error
+	LoadAll() ([]ClipboardEntry, error)
+	IncrementCount(hash string) error
+	Close() error
+}
+
 // Client handles database operations for clipboard history
 type Client struct {
 	db *sql.DB
