@@ -8,6 +8,23 @@ import (
 	automerge "github.com/automerge/automerge-go"
 )
 
+// ClipboardEntry represents a clipboard entry in the persistence layer
+type ClipboardEntry struct {
+	Content   string
+	Hash      string
+	Timestamp time.Time
+	Pinned    bool
+}
+
+// DBClient is the interface implemented by all persistence backends.
+type DBClient interface {
+	Insert(entry ClipboardEntry) error
+	Delete(hash string) error
+	LoadAll() ([]ClipboardEntry, error)
+	SetPinned(hash string, pinned bool) error
+	Close() error
+}
+
 const docPathName string = "clippings"
 
 type AutomergeClient struct {
@@ -32,6 +49,25 @@ func NewAutomergeClient(path string) (*AutomergeClient, error) {
 	}
 
 	return &AutomergeClient{doc: doc, path: path}, nil
+}
+
+// pathAs reads a typed value from the document at the given path segments.
+// Returns the zero value of T on error.
+func pathAs[T any](doc *automerge.Doc, path ...any) T {
+	v, _ := automerge.As[T](doc.Path(path...).Get())
+	return v
+}
+
+// decodeEntry reads a ClipboardEntry from the document at list index i.
+func (c *AutomergeClient) decodeEntry(i int) ClipboardEntry {
+	tsStr := pathAs[string](c.doc, docPathName, i, "timestamp")
+	ts, _ := time.Parse(time.RFC3339Nano, tsStr)
+	return ClipboardEntry{
+		Content:   pathAs[string](c.doc, docPathName, i, "content"),
+		Hash:      pathAs[string](c.doc, docPathName, i, "hash"),
+		Timestamp: ts,
+		Pinned:    pathAs[bool](c.doc, docPathName, i, "pinned"),
+	}
 }
 
 func (c *AutomergeClient) Insert(entry ClipboardEntry) error {
@@ -62,11 +98,7 @@ func (c *AutomergeClient) Delete(hash string) error {
 	length := clippings.Len()
 
 	for i := 0; i < length; i++ {
-		h, err := automerge.As[string](c.doc.Path(docPathName, i, "hash").Get())
-		if err != nil {
-			continue
-		}
-		if h == hash {
+		if pathAs[string](c.doc, docPathName, i, "hash") == hash {
 			if err := clippings.Delete(i); err != nil {
 				return fmt.Errorf("delete at index %d: %w", i, err)
 			}
@@ -79,36 +111,21 @@ func (c *AutomergeClient) Delete(hash string) error {
 }
 
 func (c *AutomergeClient) LoadAll() ([]ClipboardEntry, error) {
-	clippings := c.doc.Path(docPathName).List()
-	length := clippings.Len()
+	length := c.doc.Path(docPathName).List().Len()
 
 	entries := make([]ClipboardEntry, 0, length)
 	for i := 0; i < length; i++ {
-		content, _ := automerge.As[string](c.doc.Path(docPathName, i, "content").Get())
-		hash, _ := automerge.As[string](c.doc.Path(docPathName, i, "hash").Get())
-		tsStr, _ := automerge.As[string](c.doc.Path(docPathName, i, "timestamp").Get())
-		pinned, _ := automerge.As[bool](c.doc.Path(docPathName, i, "pinned").Get())
-
-		ts, _ := time.Parse(time.RFC3339Nano, tsStr)
-
-		entries = append(entries, ClipboardEntry{
-			Content:   content,
-			Hash:      hash,
-			Timestamp: ts,
-			Pinned:    pinned,
-		})
+		entries = append(entries, c.decodeEntry(i))
 	}
 
 	return entries, nil
 }
 
 func (c *AutomergeClient) SetPinned(hash string, pinned bool) error {
-	clippings := c.doc.Path(docPathName).List()
-	length := clippings.Len()
+	length := c.doc.Path(docPathName).List().Len()
 
 	for i := 0; i < length; i++ {
-		h, _ := automerge.As[string](c.doc.Path(docPathName, i, "hash").Get())
-		if h == hash {
+		if pathAs[string](c.doc, docPathName, i, "hash") == hash {
 			if err := c.doc.Path(docPathName, i, "pinned").Set(pinned); err != nil {
 				return fmt.Errorf("set pinned: %w", err)
 			}
