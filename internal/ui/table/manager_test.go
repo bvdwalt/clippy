@@ -90,7 +90,7 @@ func TestUpdateRows(t *testing.T) {
 			t.Fatalf("Expected 1 row, got %d", len(rows))
 		}
 		row := rows[0]
-		// row[0] = number, row[1] = content, row[2] = count, row[3] = timestamp
+		// row[0] = number, row[1] = content, row[2] = pin, row[3] = timestamp
 		if row[1] != "test content" {
 			t.Errorf("Expected content 'test content', got %q", row[1])
 		}
@@ -634,6 +634,29 @@ func TestGetSelectedItem(t *testing.T) {
 			t.Errorf("Expected nil for nil table, got %v", item)
 		}
 	})
+}
+
+func TestUpdateRows_PinnedIndicator(t *testing.T) {
+	theme := styles.DefaultTableTheme()
+	manager := NewManager(theme)
+
+	items := []history.ClipboardHistory{
+		{Item: "unpinned", Hash: "h1", Pinned: false},
+		{Item: "pinned", Hash: "h2", Pinned: true},
+	}
+	manager.UpdateRows(items)
+
+	rows := manager.GetTable().Rows()
+	if len(rows) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(rows))
+	}
+	// row[2] is the pin column
+	if rows[0][2] != "" {
+		t.Errorf("expected empty pin column for unpinned item, got %q", rows[0][2])
+	}
+	if rows[1][2] != "📌" {
+		t.Errorf("expected pin emoji for pinned item, got %q", rows[1][2])
+	}
 }
 
 func TestManagerZeroValue(t *testing.T) {

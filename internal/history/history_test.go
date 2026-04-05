@@ -387,19 +387,27 @@ func TestInMemoryManagerDeleteItem(t *testing.T) {
 	}
 }
 
-func TestInMemoryManagerIncrementItemCount(t *testing.T) {
+func TestInMemoryManagerTogglePin(t *testing.T) {
 	m := NewInMemoryManager()
 	m.AddItem("hello")
 
-	if err := m.IncrementItemCount(0); err != nil {
-		t.Errorf("IncrementItemCount(0) returned error: %v", err)
+	if err := m.TogglePin(0); err != nil {
+		t.Errorf("TogglePin(0) returned error: %v", err)
 	}
 	item, _ := m.GetItem(0)
-	if item.Count != 1 {
-		t.Errorf("Expected count 1 after increment, got %d", item.Count)
+	if !item.Pinned {
+		t.Error("Expected item to be pinned after first toggle")
 	}
 
-	if err := m.IncrementItemCount(99); err == nil {
+	if err := m.TogglePin(0); err != nil {
+		t.Errorf("TogglePin(0) returned error: %v", err)
+	}
+	item, _ = m.GetItem(0)
+	if item.Pinned {
+		t.Error("Expected item to be unpinned after second toggle")
+	}
+
+	if err := m.TogglePin(99); err == nil {
 		t.Error("Expected error for out-of-bounds index")
 	}
 }
@@ -431,5 +439,41 @@ func TestJSONMarshaling(t *testing.T) {
 	}
 	if !original.TimeStamp.Equal(unmarshaled.TimeStamp) {
 		t.Errorf("TimeStamp mismatch: expected %v, got %v", original.TimeStamp, unmarshaled.TimeStamp)
+	}
+}
+
+func TestSortItemsPinnedFirst(t *testing.T) {
+	now := time.Now()
+	items := []ClipboardHistory{
+		{Item: "a", Hash: "a", TimeStamp: now.Add(-2 * time.Second), Pinned: false},
+		{Item: "b", Hash: "b", TimeStamp: now.Add(-1 * time.Second), Pinned: true},
+		{Item: "c", Hash: "c", TimeStamp: now, Pinned: false},
+	}
+
+	sortItems(items)
+
+	if !items[0].Pinned {
+		t.Error("expected pinned item first after sort")
+	}
+	// Remaining unpinned items should be in ascending timestamp order
+	if items[1].Item != "a" || items[2].Item != "c" {
+		t.Errorf("expected unpinned items in ascending order, got %q %q", items[1].Item, items[2].Item)
+	}
+}
+
+func TestNewManager_UsesHomeDir(t *testing.T) {
+	// Just verify NewManager succeeds and produces a working manager.
+	// We can't easily control the home dir, so we only test the happy path.
+	manager, err := NewManager()
+	if err != nil {
+		t.Fatalf("NewManager() failed: %v", err)
+	}
+	defer func() {
+		if err := manager.Close(); err != nil {
+			t.Logf("close manager: %v", err)
+		}
+	}()
+	if manager == nil {
+		t.Fatal("NewManager() returned nil")
 	}
 }

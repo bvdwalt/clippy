@@ -35,6 +35,8 @@ type Model struct {
 	height         int
 	width          int
 	previewHeight  int
+	confirmDelete  bool   // waiting for y/n confirmation on a pinned item
+	confirmHash    string // hash of the item pending delete confirmation
 }
 
 // NewModel creates a new UI model
@@ -60,6 +62,30 @@ func NewModel(historyManager *history.Manager) Model {
 
 	m.updateTable()
 	return m
+}
+
+// findByHash returns the item with the given hash, or nil if not found
+func (m *Model) findByHash(hash string) *history.ClipboardHistory {
+	for _, item := range m.historyManager.GetItems() {
+		if item.Hash == hash {
+			return &item
+		}
+	}
+	return nil
+}
+
+// deleteByHash removes the item with the given hash from history and refreshes the table
+func (m *Model) deleteByHash(hash string) {
+	allItems := m.historyManager.GetItems()
+	for i, item := range allItems {
+		if item.Hash == hash {
+			if m.historyManager.DeleteItem(i) {
+				m.lastClipboard = item.Item
+				m.updateTable()
+			}
+			break
+		}
+	}
 }
 
 // updateTable refreshes the table with current (filtered) history items
@@ -98,6 +124,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle pending delete confirmation for pinned items
+		if m.confirmDelete {
+			switch msg.String() {
+			case "y":
+				m.confirmDelete = false
+				m.deleteByHash(m.confirmHash)
+				m.confirmHash = ""
+			case "n", "esc":
+				m.confirmDelete = false
+				m.confirmHash = ""
+			}
+			return m, cmd
+		}
+
 		// Global shortcuts that work in any mode
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -148,28 +188,38 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if err := clipboard.WriteAll(items[selectedRow].Item); err != nil {
 							log.Printf("Failed to write to clipboard: %v", err)
 						}
-						if err := m.historyManager.IncrementItemCount(selectedRow); err != nil {
-							log.Printf("Failed to increment item count: %v", err)
-						}
 					}
 				}
-			case "d":
-				// Delete selected item
+			case "p":
+				// Toggle pin on selected item
 				items := m.getDisplayItems()
 				if len(items) > 0 {
 					selectedRow := m.tableManager.GetCursor()
 					if selectedRow < len(items) {
-						// Find the original index in history manager
-						itemToDelete := items[selectedRow]
 						allItems := m.historyManager.GetItems()
 						for i, item := range allItems {
-							if item.Hash == itemToDelete.Hash {
-								if m.historyManager.DeleteItem(i) {
-									m.lastClipboard = itemToDelete.Item
-									m.updateTable()
+							if item.Hash == items[selectedRow].Hash {
+								if err := m.historyManager.TogglePin(i); err != nil {
+									log.Printf("Failed to toggle pin: %v", err)
 								}
+								m.updateTable()
 								break
 							}
+						}
+					}
+				}
+			case "d":
+				// Delete selected item — ask for confirmation if pinned
+				items := m.getDisplayItems()
+				if len(items) > 0 {
+					selectedRow := m.tableManager.GetCursor()
+					if selectedRow < len(items) {
+						itemToDelete := items[selectedRow]
+						if itemToDelete.Pinned {
+							m.confirmDelete = true
+							m.confirmHash = itemToDelete.Hash
+						} else {
+							m.deleteByHash(itemToDelete.Hash)
 						}
 					}
 				}
@@ -270,12 +320,25 @@ func (m Model) View() tea.View {
 		status = fmt.Sprintf("Total items: %d", len(items))
 	}
 
-	help := "Keys: \u2191/k \u2193/j navigate \u2022 Enter/c copy \u2022 d delete \u2022 / search \u2022 r refresh \u2022 q quit"
-	if m.filtered != nil {
-		help += " \u2022 esc clear search"
-	}
-
 	content.WriteString("\n" + status + "\n")
+
+	var help string
+	if m.confirmDelete {
+		item := m.findByHash(m.confirmHash)
+		preview := ""
+		if item != nil {
+			preview = item.Item
+			if len(preview) > 40 {
+				preview = preview[:40] + "..."
+			}
+		}
+		help = fmt.Sprintf("Delete pinned item %q? (y/n)", preview)
+	} else {
+		help = "Keys: \u2191/k \u2193/j navigate \u2022 Enter/c copy \u2022 p pin \u2022 d delete \u2022 / search \u2022 r refresh \u2022 q quit"
+		if m.filtered != nil {
+			help += " \u2022 esc clear search"
+		}
+	}
 	content.WriteString(m.theme.Help.Render(help))
 
 	v := tea.NewView(m.theme.Doc.Render(content.String()))
