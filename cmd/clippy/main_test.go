@@ -159,7 +159,6 @@ func TestHistoryManagerInitialization(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
 
-		// With SQLite, this test is less relevant
 		// Just verify basic operations work
 		historyManager.AddItem("test item")
 		if historyManager.Count() != 1 {
@@ -474,11 +473,11 @@ func BenchmarkFullApplicationCycle(b *testing.B) {
 		}
 	}()
 
-	dbPath := tempDir + "/cycle.db"
+	dbPath := tempDir + "/cycle.automerge"
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		// Full cycle: load -> modify -> save (with SQLite, saves are immediate)
+		// Full cycle: load -> modify -> save
 		historyManager, err := history.NewManagerWithPath(dbPath)
 		if err != nil {
 			b.Fatalf("Failed to create manager: %v", err)
@@ -487,7 +486,6 @@ func BenchmarkFullApplicationCycle(b *testing.B) {
 			b.Fatalf("Failed to load from DB: %v", err)
 		}
 		historyManager.AddItem(fmt.Sprintf("cycle item %d", i))
-		// Note: SaveToDB() is now a no-op as saves are immediate with SQLite
 		if err := historyManager.Close(); err != nil {
 			b.Fatalf("Failed to close history manager: %v", err)
 		}

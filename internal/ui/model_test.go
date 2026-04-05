@@ -654,3 +654,121 @@ func contains(hay any, substr string) bool {
 
 	return strings.Contains(s, substr)
 }
+
+func TestModelPinKey(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("item to pin")
+	model := NewModel(historyManager)
+
+	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "p"}))
+	model = newModel.(Model)
+
+	item, ok := historyManager.GetItem(0)
+	if !ok {
+		t.Fatal("expected item at index 0")
+	}
+	if !item.Pinned {
+		t.Error("expected item to be pinned after 'p'")
+	}
+
+	// Toggle off
+	newModel, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "p"}))
+	model = newModel.(Model)
+	item, _ = historyManager.GetItem(0)
+	if item.Pinned {
+		t.Error("expected item to be unpinned after second 'p'")
+	}
+	_ = model
+}
+
+func TestModelDeletePinnedItemConfirmY(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("pinned item")
+	if err := historyManager.TogglePin(0); err != nil {
+		t.Fatalf("TogglePin: %v", err)
+	}
+	model := NewModel(historyManager)
+
+	// 'd' on a pinned item should set confirmDelete, not delete immediately
+	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "d"}))
+	model = newModel.(Model)
+
+	if historyManager.Count() != 1 {
+		t.Error("expected item to still exist after 'd' on pinned item")
+	}
+	if !model.confirmDelete {
+		t.Error("expected confirmDelete to be true")
+	}
+
+	// View should show the confirmation prompt
+	if !contains(model.View(), "y/n") {
+		t.Error("expected confirmation prompt in view")
+	}
+
+	// 'y' should confirm the delete
+	newModel, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "y"}))
+	model = newModel.(Model)
+
+	if historyManager.Count() != 0 {
+		t.Error("expected item to be deleted after 'y' confirmation")
+	}
+	if model.confirmDelete {
+		t.Error("expected confirmDelete to be cleared after 'y'")
+	}
+	_ = model
+}
+
+func TestModelDeletePinnedItemConfirmN(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("pinned item")
+	if err := historyManager.TogglePin(0); err != nil {
+		t.Fatalf("TogglePin: %v", err)
+	}
+	model := NewModel(historyManager)
+
+	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "d"}))
+	model = newModel.(Model)
+
+	// 'n' should cancel
+	newModel, _ = model.Update(tea.KeyPressMsg(tea.Key{Text: "n"}))
+	model = newModel.(Model)
+
+	if historyManager.Count() != 1 {
+		t.Error("expected item to still exist after 'n' cancel")
+	}
+	if model.confirmDelete {
+		t.Error("expected confirmDelete to be cleared after 'n'")
+	}
+	_ = model
+}
+
+func TestModelDeletePinnedItemConfirmEsc(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	historyManager.AddItem("pinned item")
+	if err := historyManager.TogglePin(0); err != nil {
+		t.Fatalf("TogglePin: %v", err)
+	}
+	model := NewModel(historyManager)
+
+	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "d"}))
+	model = newModel.(Model)
+
+	newModel, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
+	model = newModel.(Model)
+
+	if historyManager.Count() != 1 {
+		t.Error("expected item to still exist after esc cancel")
+	}
+	if model.confirmDelete {
+		t.Error("expected confirmDelete to be cleared after esc")
+	}
+	_ = model
+}

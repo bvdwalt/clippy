@@ -147,7 +147,7 @@ func (m *Manager) Count() int {
 	return len(m.items)
 }
 
-// LoadFromDB loads history from the SQLite database
+// LoadFromDB loads history from the Automerge document
 func (m *Manager) LoadFromDB() error {
 	if m.dbClient == nil {
 		return nil

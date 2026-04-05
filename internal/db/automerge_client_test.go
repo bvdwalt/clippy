@@ -264,3 +264,28 @@ func TestDecodeEntry_MissingPinnedField(t *testing.T) {
 		t.Errorf("content = %q, want %q", entries[0].Content, "old entry")
 	}
 }
+
+func TestDoc_ReturnsUnderlyingDoc(t *testing.T) {
+	client, _, cleanup := setupClient(t)
+	defer cleanup()
+
+	doc := client.Doc()
+	if doc == nil {
+		t.Error("expected Doc() to return non-nil automerge doc")
+	}
+	if doc != client.doc {
+		t.Error("expected Doc() to return the same doc instance")
+	}
+}
+
+func TestSave_FailsWhenPathIsDirectory(t *testing.T) {
+	client, _, cleanup := setupClient(t)
+	defer cleanup()
+
+	// Point the path at a directory so os.Rename fails
+	client.path = os.TempDir()
+	err := client.save()
+	if err == nil {
+		t.Error("expected save to fail when path is a directory")
+	}
+}

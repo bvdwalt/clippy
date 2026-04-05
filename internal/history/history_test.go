@@ -441,3 +441,39 @@ func TestJSONMarshaling(t *testing.T) {
 		t.Errorf("TimeStamp mismatch: expected %v, got %v", original.TimeStamp, unmarshaled.TimeStamp)
 	}
 }
+
+func TestSortItemsPinnedFirst(t *testing.T) {
+	now := time.Now()
+	items := []ClipboardHistory{
+		{Item: "a", Hash: "a", TimeStamp: now.Add(-2 * time.Second), Pinned: false},
+		{Item: "b", Hash: "b", TimeStamp: now.Add(-1 * time.Second), Pinned: true},
+		{Item: "c", Hash: "c", TimeStamp: now, Pinned: false},
+	}
+
+	sortItems(items)
+
+	if !items[0].Pinned {
+		t.Error("expected pinned item first after sort")
+	}
+	// Remaining unpinned items should be in ascending timestamp order
+	if items[1].Item != "a" || items[2].Item != "c" {
+		t.Errorf("expected unpinned items in ascending order, got %q %q", items[1].Item, items[2].Item)
+	}
+}
+
+func TestNewManager_UsesHomeDir(t *testing.T) {
+	// Just verify NewManager succeeds and produces a working manager.
+	// We can't easily control the home dir, so we only test the happy path.
+	manager, err := NewManager()
+	if err != nil {
+		t.Fatalf("NewManager() failed: %v", err)
+	}
+	defer func() {
+		if err := manager.Close(); err != nil {
+			t.Logf("close manager: %v", err)
+		}
+	}()
+	if manager == nil {
+		t.Fatal("NewManager() returned nil")
+	}
+}
