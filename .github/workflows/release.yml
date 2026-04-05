@@ -25,6 +25,8 @@ jobs:
 
       - name: Install zig (for CGO cross-compilation)
         uses: mlugg/setup-zig@v1
+        with:
+          version: 0.14.0
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
