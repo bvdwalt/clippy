@@ -45,7 +45,7 @@ Clippy is a terminal-based clipboard history manager. The data flow is:
 
 ### CGO requirement
 
-`automerge-go` wraps a C library and requires CGO. Build with `CGO_ENABLED=1` (the default). Cross-compilation is not supported — releases are built natively per platform in CI.
+`automerge-go` wraps a C library and requires CGO. Build with `CGO_ENABLED=1` (the default). Releases are cross-compiled from a single Linux runner using `zig cc` as the C compiler.
 
 ### Testing patterns
 
