@@ -30,7 +30,7 @@ func main() {
 	}
 
 	// Create the enhanced model
-	model := ui.NewModel(historyManager)
+	model := ui.NewModel(historyManager, "dev")
 
 	// Create the bubbletea program
 	p := tea.NewProgram(model)

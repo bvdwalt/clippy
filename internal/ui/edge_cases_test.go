@@ -13,7 +13,7 @@ func TestModelViewEdgeCases(t *testing.T) {
 	t.Run("View with cursor beyond available items", func(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
-		model := NewModel(historyManager)
+		model := NewModel(historyManager, "dev")
 
 		// Add one item
 		historyManager.AddItem("single item")
@@ -36,7 +36,7 @@ func TestModelViewEdgeCases(t *testing.T) {
 	t.Run("View with item renders correctly", func(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
-		model := NewModel(historyManager)
+		model := NewModel(historyManager, "dev")
 
 		historyManager.AddItem("test item")
 		model.UpdateTable() // Update table with new items
@@ -58,7 +58,7 @@ func TestModelViewEdgeCases(t *testing.T) {
 	t.Run("View with exactly 60 character content", func(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
-		model := NewModel(historyManager)
+		model := NewModel(historyManager, "dev")
 
 		// Create content that's exactly 60 characters
 		content60 := strings.Repeat("a", 60)
@@ -77,7 +77,7 @@ func TestModelViewEdgeCases(t *testing.T) {
 	t.Run("View with 61 character content", func(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
-		model := NewModel(historyManager)
+		model := NewModel(historyManager, "dev")
 
 		// Create content that's 61 characters (should be truncated)
 		content61 := strings.Repeat("b", 61)
@@ -102,7 +102,7 @@ func TestModelViewEdgeCases(t *testing.T) {
 	t.Run("View with mixed newlines and spaces", func(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
-		model := NewModel(historyManager)
+		model := NewModel(historyManager, "dev")
 
 		// Content with various whitespace characters
 		content := "line1\nline2\r\nline3\tcolumn2"
@@ -122,7 +122,7 @@ func TestModelViewEdgeCases(t *testing.T) {
 	t.Run("View with empty string content", func(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
-		model := NewModel(historyManager)
+		model := NewModel(historyManager, "dev")
 
 		// Add empty string
 		historyManager.AddItem("")
@@ -139,7 +139,7 @@ func TestModelViewEdgeCases(t *testing.T) {
 	t.Run("View with only whitespace content", func(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
-		model := NewModel(historyManager)
+		model := NewModel(historyManager, "dev")
 
 		// Add whitespace-only content
 		historyManager.AddItem("   \t   ")
@@ -157,7 +157,7 @@ func TestModelViewEdgeCases(t *testing.T) {
 func TestModelCursorBoundaryConditions(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager)
+	model := NewModel(historyManager, "dev")
 
 	t.Run("Cursor with empty history", func(t *testing.T) {
 		// No items in history
@@ -212,7 +212,7 @@ func TestModelLargeDatasets(t *testing.T) {
 	t.Run("Performance with many items", func(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
-		model := NewModel(historyManager)
+		model := NewModel(historyManager, "dev")
 
 		// Add many unique items to avoid deduplication
 		itemCount := 100 // Reduced for faster testing
@@ -288,7 +288,7 @@ func TestModelSpecialCharacters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			historyManager, cleanup := setupTestHistoryManager(t)
 			defer cleanup()
-			model := NewModel(historyManager)
+			model := NewModel(historyManager, "dev")
 
 			historyManager.AddItem(tc.content)
 			model.UpdateTable() // Update table with new items
