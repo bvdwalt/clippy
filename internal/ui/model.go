@@ -37,10 +37,12 @@ type Model struct {
 	previewHeight  int
 	confirmDelete  bool   // waiting for y/n confirmation on a pinned item
 	confirmHash    string // hash of the item pending delete confirmation
+	version        string
 }
 
-// NewModel creates a new UI model
-func NewModel(historyManager *history.Manager) Model {
+// NewModel creates a new UI model. An optional version string may be passed;
+// it defaults to "dev" when omitted.
+func NewModel(historyManager *history.Manager, version ...string) Model {
 	ti := textinput.New()
 	ti.Placeholder = "Search clipboard history..."
 	ti.CharLimit = 50
@@ -51,6 +53,11 @@ func NewModel(historyManager *history.Manager) Model {
 	tableManager := table.NewManager(tableTheme)
 	fuzzyMatcher := search.NewFuzzyMatcher()
 
+	v := "dev"
+	if len(version) > 0 {
+		v = version[0]
+	}
+
 	m := Model{
 		historyManager: historyManager,
 		tableManager:   tableManager,
@@ -58,6 +65,7 @@ func NewModel(historyManager *history.Manager) Model {
 		fuzzyMatcher:   fuzzyMatcher,
 		theme:          theme,
 		mode:           TableView,
+		version:        v,
 	}
 
 	m.updateTable()
@@ -273,7 +281,7 @@ func (m Model) View() tea.View {
 	var content strings.Builder
 
 	// Title
-	title := m.theme.Title.Render("📋 Clippy Clipboard History")
+	title := m.theme.Title.Render("📋 Clippy Clipboard History") + "  " + m.theme.Help.Margin(0).Render("version: "+m.version)
 	content.WriteString(title + "\n\n")
 
 	// Search mode UI

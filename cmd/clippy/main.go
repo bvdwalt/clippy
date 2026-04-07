@@ -8,6 +8,8 @@ import (
 	"github.com/bvdwalt/clippy/internal/ui"
 )
 
+var version = "dev"
+
 func main() {
 	// Create history manager
 	historyManager, err := history.NewManager()
@@ -24,7 +26,7 @@ func main() {
 		log.Printf("Warning: Could not load history: %v", err)
 	}
 
-	initialModel := ui.NewModel(historyManager)
+	initialModel := ui.NewModel(historyManager, version)
 	program := tea.NewProgram(initialModel)
 
 	_, err = program.Run()
