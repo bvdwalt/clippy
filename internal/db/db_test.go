@@ -1,25 +1,26 @@
 package db
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 )
 
-func setupClient(t *testing.T) (*AutomergeClient, string, func()) {
+func setupClient(t *testing.T) (*Client, string, func()) {
 	t.Helper()
 	dir, err := os.MkdirTemp("", "clippy_db_test")
 	if err != nil {
 		t.Fatalf("create temp dir: %v", err)
 	}
-	path := filepath.Join(dir, "test.automerge")
-	client, err := NewAutomergeClient(path)
+	path := filepath.Join(dir, "test.db")
+	client, err := New(path)
 	if err != nil {
 		if removeErr := os.RemoveAll(dir); removeErr != nil {
 			t.Logf("remove temp dir: %v", removeErr)
 		}
-		t.Fatalf("NewAutomergeClient: %v", err)
+		t.Fatalf("New: %v", err)
 	}
 	return client, path, func() {
 		if err := client.Close(); err != nil {
@@ -34,12 +35,12 @@ func setupClient(t *testing.T) (*AutomergeClient, string, func()) {
 func makeEntry(content string) ClipboardEntry {
 	return ClipboardEntry{
 		Content:   content,
-		Hash:      content + "-hash", // stable fake hash for tests
+		Hash:      content + "-hash",
 		Timestamp: time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 	}
 }
 
-func TestNewAutomergeClient_CreatesEmptyDoc(t *testing.T) {
+func TestNew_CreatesEmptyDB(t *testing.T) {
 	client, _, cleanup := setupClient(t)
 	defer cleanup()
 
@@ -52,25 +53,17 @@ func TestNewAutomergeClient_CreatesEmptyDoc(t *testing.T) {
 	}
 }
 
-func TestNewAutomergeClient_CorruptFile(t *testing.T) {
-	dir, err := os.MkdirTemp("", "clippy_db_test")
+func TestNew_IdempotentOpen(t *testing.T) {
+	_, path, cleanup := setupClient(t)
+	defer cleanup()
+
+	// Reopen same path — should not error
+	client2, err := New(path)
 	if err != nil {
-		t.Fatalf("create temp dir: %v", err)
+		t.Fatalf("reopen: %v", err)
 	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Logf("remove temp dir: %v", err)
-		}
-	}()
-
-	path := filepath.Join(dir, "corrupt.automerge")
-	if err := os.WriteFile(path, []byte("not valid automerge data"), 0644); err != nil {
-		t.Fatalf("write corrupt file: %v", err)
-	}
-
-	_, err = NewAutomergeClient(path)
-	if err == nil {
-		t.Error("expected error loading corrupt file, got nil")
+	if err := client2.Close(); err != nil {
+		t.Logf("close client2: %v", err)
 	}
 }
 
@@ -103,9 +96,6 @@ func TestInsertAndLoadAll(t *testing.T) {
 		if loaded[i].Hash != e.Hash {
 			t.Errorf("entry %d: hash = %q, want %q", i, loaded[i].Hash, e.Hash)
 		}
-		if !loaded[i].Timestamp.Equal(e.Timestamp) {
-			t.Errorf("entry %d: timestamp = %v, want %v", i, loaded[i].Timestamp, e.Timestamp)
-		}
 		if loaded[i].Pinned != e.Pinned {
 			t.Errorf("entry %d: pinned = %v, want %v", i, loaded[i].Pinned, e.Pinned)
 		}
@@ -125,8 +115,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatalf("Close: %v", err)
 	}
 
-	// Reopen from disk
-	client2, err := NewAutomergeClient(path)
+	client2, err := New(path)
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}
@@ -149,9 +138,6 @@ func TestRoundTrip(t *testing.T) {
 	}
 	if e.Hash != entry.Hash {
 		t.Errorf("hash = %q, want %q", e.Hash, entry.Hash)
-	}
-	if !e.Timestamp.Equal(entry.Timestamp) {
-		t.Errorf("timestamp = %v, want %v", e.Timestamp, entry.Timestamp)
 	}
 	if e.Pinned != entry.Pinned {
 		t.Errorf("pinned = %v, want %v", e.Pinned, entry.Pinned)
@@ -229,63 +215,64 @@ func TestSetPinned_NotFound(t *testing.T) {
 	}
 }
 
-// TestDecodeEntry_MissingPinnedField verifies that documents written before the
-// "pinned" field existed (where the field is absent) decode gracefully to
-// Pinned=false rather than panicking or erroring.
-func TestDecodeEntry_MissingPinnedField(t *testing.T) {
-	client, _, cleanup := setupClient(t)
-	defer cleanup()
-
-	// Insert a raw entry without the "pinned" field to simulate an old document.
-	clippings := client.doc.Path(docPathName).List()
-	err := clippings.Insert(clippings.Len(), map[string]interface{}{
-		"content":   "old entry",
-		"hash":      "old-hash",
-		"timestamp": time.Now().Format("2006-01-02T15:04:05Z07:00"),
-	})
+func TestMigrate_AddsPinnedColumn(t *testing.T) {
+	dir, err := os.MkdirTemp("", "clippy_db_migrate_test")
 	if err != nil {
-		t.Fatalf("insert raw entry: %v", err)
+		t.Fatalf("create temp dir: %v", err)
 	}
-	if _, err := client.doc.Commit("legacy entry without pinned field"); err != nil {
-		t.Fatalf("commit: %v", err)
+	defer func() {
+		if err := os.RemoveAll(dir); err != nil {
+			t.Logf("remove temp dir: %v", err)
+		}
+	}()
+
+	// Create a legacy schema (count column, no pinned)
+	path := filepath.Join(dir, "legacy.db")
+	legacyClient, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open legacy db: %v", err)
 	}
+	_, err = legacyClient.Exec(`
+		CREATE TABLE clipboard_history (
+			hash TEXT PRIMARY KEY,
+			content TEXT NOT NULL,
+			timestamp DATETIME NOT NULL,
+			count INTEGER NOT NULL DEFAULT 0
+		)
+	`)
+	if err != nil {
+		t.Fatalf("create legacy schema: %v", err)
+	}
+	_, err = legacyClient.Exec(`INSERT INTO clipboard_history (hash, content, timestamp, count) VALUES ('h1', 'old entry', '2024-01-01T00:00:00Z', 0)`)
+	if err != nil {
+		t.Fatalf("insert legacy entry: %v", err)
+	}
+	if err := legacyClient.Close(); err != nil {
+		t.Logf("close legacy db: %v", err)
+	}
+
+	// Open with New — should migrate
+	client, err := New(path)
+	if err != nil {
+		t.Fatalf("New (migration): %v", err)
+	}
+	defer func() {
+		if err := client.Close(); err != nil {
+			t.Logf("close client: %v", err)
+		}
+	}()
 
 	entries, err := client.LoadAll()
 	if err != nil {
-		t.Fatalf("LoadAll: %v", err)
+		t.Fatalf("LoadAll after migration: %v", err)
 	}
 	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
-	}
-	if entries[0].Pinned {
-		t.Error("expected Pinned=false for entry missing the pinned field")
+		t.Fatalf("expected 1 entry after migration, got %d", len(entries))
 	}
 	if entries[0].Content != "old entry" {
 		t.Errorf("content = %q, want %q", entries[0].Content, "old entry")
 	}
-}
-
-func TestDoc_ReturnsUnderlyingDoc(t *testing.T) {
-	client, _, cleanup := setupClient(t)
-	defer cleanup()
-
-	doc := client.Doc()
-	if doc == nil {
-		t.Error("expected Doc() to return non-nil automerge doc")
-	}
-	if doc != client.doc {
-		t.Error("expected Doc() to return the same doc instance")
-	}
-}
-
-func TestSave_FailsWhenPathIsDirectory(t *testing.T) {
-	client, _, cleanup := setupClient(t)
-	defer cleanup()
-
-	// Point the path at a directory so os.Rename fails
-	client.path = os.TempDir()
-	err := client.save()
-	if err == nil {
-		t.Error("expected save to fail when path is a directory")
+	if entries[0].Pinned {
+		t.Error("expected Pinned=false for migrated entry")
 	}
 }

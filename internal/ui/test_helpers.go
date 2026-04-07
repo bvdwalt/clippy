@@ -17,7 +17,7 @@ func setupTestHistoryManager(t *testing.T) (*history.Manager, func()) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 
-	dbPath := filepath.Join(tempDir, "test.automerge")
+	dbPath := filepath.Join(tempDir, "test.db")
 	manager, err := history.NewManagerWithPath(dbPath)
 	if err != nil {
 		if err := os.RemoveAll(tempDir); err != nil {
@@ -47,7 +47,7 @@ func setupTestHistoryManagerForBench(b *testing.B) (*history.Manager, func()) {
 		b.Fatalf("Failed to create temp dir: %v", err)
 	}
 
-	dbPath := filepath.Join(tempDir, "bench.automerge")
+	dbPath := filepath.Join(tempDir, "bench.db")
 	manager, err := history.NewManagerWithPath(dbPath)
 	if err != nil {
 		if err := os.RemoveAll(tempDir); err != nil {
