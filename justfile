@@ -1,7 +1,7 @@
 BINARY_NAME := "clippy"
 BINARY_PATH := "./" + BINARY_NAME
 CMD_PATH := "./cmd/" + BINARY_NAME
-VERSION := `git describe --tags --always --dirty 2>/dev/null || echo "dev"`
+VERSION := `git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo "dev"`
 BUILD_FLAGS := "-ldflags \"-X main.version=" + VERSION + "\""
 
 build:
