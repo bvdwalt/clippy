@@ -173,7 +173,7 @@ func TestUIModelInitialization(t *testing.T) {
 		defer cleanup()
 		historyManager.AddItem("test item")
 
-		initialModel := ui.NewModel(historyManager, "dev")
+		initialModel := ui.NewModel(historyManager)
 
 		// Verify model is properly initialized
 		// We can't easily test the internal state, but we can test the public interface
@@ -191,7 +191,7 @@ func TestUIModelInitialization(t *testing.T) {
 	t.Run("UI model Init command", func(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
-		initialModel := ui.NewModel(historyManager, "dev")
+		initialModel := ui.NewModel(historyManager)
 
 		cmd := initialModel.Init()
 		if cmd == nil {
@@ -204,7 +204,7 @@ func TestBubbleteaProgramCreation(t *testing.T) {
 	t.Run("Create bubbletea program", func(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
-		initialModel := ui.NewModel(historyManager, "dev")
+		initialModel := ui.NewModel(historyManager)
 
 		// This tests that we can create a program without errors
 		program := tea.NewProgram(initialModel)
@@ -220,7 +220,7 @@ func TestBubbleteaProgramCreation(t *testing.T) {
 	t.Run("Program with options", func(t *testing.T) {
 		historyManager, cleanup := setupTestHistoryManager(t)
 		defer cleanup()
-		initialModel := ui.NewModel(historyManager, "dev")
+		initialModel := ui.NewModel(historyManager)
 
 		// Test creating program with options (as might be done in real app)
 		program := tea.NewProgram(
@@ -252,7 +252,7 @@ func TestIntegrationFlow(t *testing.T) {
 		historyManager.AddItem("initial test item")
 
 		// Step 4: UI model creation
-		initialModel := ui.NewModel(historyManager, "dev")
+		initialModel := ui.NewModel(historyManager)
 		if initialModel.View().Content == "" {
 			t.Error("Expected non-empty initial view")
 		}
@@ -383,7 +383,7 @@ func TestMainFunctionComponents(t *testing.T) {
 		}
 
 		// Create UI model
-		model := ui.NewModel(historyManager, "dev")
+		model := ui.NewModel(historyManager)
 
 		// Test that the view renders correctly with table format
 		model.UpdateTable() // Update table with new items
@@ -452,7 +452,7 @@ func BenchmarkApplicationInitialization(b *testing.B) {
 			b.Fatalf("Failed to load from DB: %v", err)
 		}
 
-		initialModel := ui.NewModel(historyManager, "dev")
+		initialModel := ui.NewModel(historyManager)
 		tea.NewProgram(initialModel)
 
 		if err := historyManager.Close(); err != nil {

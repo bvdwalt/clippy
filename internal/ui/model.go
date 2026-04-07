@@ -40,8 +40,9 @@ type Model struct {
 	version        string
 }
 
-// NewModel creates a new UI model
-func NewModel(historyManager *history.Manager, version string) Model {
+// NewModel creates a new UI model. An optional version string may be passed;
+// it defaults to "dev" when omitted.
+func NewModel(historyManager *history.Manager, version ...string) Model {
 	ti := textinput.New()
 	ti.Placeholder = "Search clipboard history..."
 	ti.CharLimit = 50
@@ -52,6 +53,11 @@ func NewModel(historyManager *history.Manager, version string) Model {
 	tableManager := table.NewManager(tableTheme)
 	fuzzyMatcher := search.NewFuzzyMatcher()
 
+	v := "dev"
+	if len(version) > 0 {
+		v = version[0]
+	}
+
 	m := Model{
 		historyManager: historyManager,
 		tableManager:   tableManager,
@@ -59,7 +65,7 @@ func NewModel(historyManager *history.Manager, version string) Model {
 		fuzzyMatcher:   fuzzyMatcher,
 		theme:          theme,
 		mode:           TableView,
-		version:        version,
+		version:        v,
 	}
 
 	m.updateTable()

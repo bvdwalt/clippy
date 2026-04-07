@@ -12,7 +12,7 @@ import (
 func TestNewModel(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	if model.historyManager == nil {
 		t.Error("Expected historyManager to be set")
@@ -35,7 +35,7 @@ func TestNewModel(t *testing.T) {
 func TestModelInit(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	cmd := model.Init()
 	if cmd == nil {
@@ -59,7 +59,7 @@ func TestModelUpdateKeyMessages(t *testing.T) {
 	// we'll test the cursor movement logic separately
 
 	t.Run("Cursor movement logic", func(t *testing.T) {
-		model := NewModel(historyManager, "dev")
+		model := NewModel(historyManager)
 
 		// With the new table-based model, we test cursor position after simulated key events
 		// Test that cursor starts at 0
@@ -90,7 +90,7 @@ func TestModelUpdateKeyMessages(t *testing.T) {
 func TestModelUpdateTickMessage(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Create a TickMsg
 	tickMsg := TickMsg(time.Now())
@@ -121,7 +121,7 @@ func TestModelUpdateTickMessage(t *testing.T) {
 func TestModelUpdateWindowSizeMessage(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	windowMsg := tea.WindowSizeMsg{
 		Width:  80,
@@ -143,7 +143,7 @@ func TestModelUpdateWindowSizeMessage(t *testing.T) {
 func TestModelView(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Test empty history
 	view := model.View()
@@ -179,7 +179,7 @@ func TestModelViewLongContent(t *testing.T) {
 	// ...existing code, but change view uses to view.Content
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	longContent := "This is a very long piece of content that should be truncated when displayed in the UI because it exceeds sixty characters"
 	historyManager.AddItem(longContent)
@@ -202,7 +202,7 @@ func TestModelViewNewlineReplacement(t *testing.T) {
 	// ...existing code with view.Content
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	contentWithNewlines := "line1\nline2\nline3"
 	historyManager.AddItem(contentWithNewlines)
@@ -225,7 +225,7 @@ func TestModelViewCursorMovement(t *testing.T) {
 	// ...existing code, change view to view.Content
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	items := []string{"item1", "item2", "item3"}
 	for _, item := range items {
@@ -255,7 +255,7 @@ func TestModelViewCursorMovement(t *testing.T) {
 func TestModelEnterKeyWithValidItem(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Add some items
 	historyManager.AddItem("test content")
@@ -280,7 +280,7 @@ func TestModelEnterKeyWithValidItem(t *testing.T) {
 func TestModelEnterKeyWithInvalidCursor(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Test the GetItem logic with invalid cursor (empty history)
 	_, ok := model.historyManager.GetItem(5)
@@ -292,7 +292,7 @@ func TestModelEnterKeyWithInvalidCursor(t *testing.T) {
 func TestModelPreviewHeight(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	windowMsg := tea.WindowSizeMsg{Width: 120, Height: 40}
 	newModel, _ := model.Update(windowMsg)
@@ -307,7 +307,7 @@ func TestModelPreviewHeight(t *testing.T) {
 func TestModelPreviewHeightSmallWindow(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Very small window: available = max(12-10, 6) = 6, previewH = max(6/3, 3) = 3
 	windowMsg := tea.WindowSizeMsg{Width: 80, Height: 12}
@@ -324,7 +324,7 @@ func TestModelPreviewPane(t *testing.T) {
 	defer cleanup()
 
 	historyManager.AddItem("preview content here")
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Trigger window resize to set previewHeight > 0
 	windowMsg := tea.WindowSizeMsg{Width: 120, Height: 40}
@@ -344,7 +344,7 @@ func TestModelPreviewPane(t *testing.T) {
 func TestModelPreviewPaneNoSelection(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	windowMsg := tea.WindowSizeMsg{Width: 120, Height: 40}
 	newModel, _ := model.Update(windowMsg)
@@ -360,7 +360,7 @@ func TestModelPreviewPaneNoSelection(t *testing.T) {
 func TestModelUnknownKeyMessage(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	initialHeight := model.height
 	initialManager := model.historyManager
@@ -387,7 +387,7 @@ func TestModelFilterItems(t *testing.T) {
 	historyManager.AddItem("hello go")
 
 	t.Run("Non-empty query sets filtered", func(t *testing.T) {
-		model := NewModel(historyManager, "dev")
+		model := NewModel(historyManager)
 		model.filterItems("hello")
 
 		if model.filtered == nil {
@@ -401,7 +401,7 @@ func TestModelFilterItems(t *testing.T) {
 	})
 
 	t.Run("Empty query clears filtered", func(t *testing.T) {
-		model := NewModel(historyManager, "dev")
+		model := NewModel(historyManager)
 		model.filterItems("hello")
 		model.filterItems("")
 
@@ -419,7 +419,7 @@ func TestModelGetDisplayItems(t *testing.T) {
 	historyManager.AddItem("item two")
 
 	t.Run("Returns all items when no filter", func(t *testing.T) {
-		model := NewModel(historyManager, "dev")
+		model := NewModel(historyManager)
 		items := model.getDisplayItems()
 		if len(items) != 2 {
 			t.Errorf("Expected 2 items, got %d", len(items))
@@ -427,7 +427,7 @@ func TestModelGetDisplayItems(t *testing.T) {
 	})
 
 	t.Run("Returns filtered items when filter set", func(t *testing.T) {
-		model := NewModel(historyManager, "dev")
+		model := NewModel(historyManager)
 		model.filterItems("one")
 		items := model.getDisplayItems()
 		if len(items) != 1 {
@@ -442,7 +442,7 @@ func TestModelGetDisplayItems(t *testing.T) {
 func TestModelSearchModeToggle(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	if model.mode != TableView {
 		t.Fatal("Expected initial mode to be TableView")
@@ -473,7 +473,7 @@ func TestModelSearchModeToggle(t *testing.T) {
 func TestModelSearchModeTyping(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Enter search mode
 	slashMsg := tea.KeyPressMsg(tea.Key{Text: "/"})
@@ -496,7 +496,7 @@ func TestModelSearchModeEnter(t *testing.T) {
 
 	historyManager.AddItem("hello world")
 	historyManager.AddItem("foo bar")
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Enter search mode
 	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "/"}))
@@ -521,7 +521,7 @@ func TestModelSearchModeEnter(t *testing.T) {
 func TestModelQuitKey(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	_, cmd := model.Update(tea.KeyPressMsg(tea.Key{Text: "q"}))
 	if cmd == nil {
@@ -535,7 +535,7 @@ func TestModelDeleteKey(t *testing.T) {
 
 	historyManager.AddItem("item to delete")
 	historyManager.AddItem("item to keep")
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	initialCount := historyManager.Count()
 
@@ -554,7 +554,7 @@ func TestModelRefreshKey(t *testing.T) {
 	defer cleanup()
 
 	historyManager.AddItem("some item")
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Set a filter first
 	model.filterItems("some")
@@ -577,7 +577,7 @@ func TestModelRefreshKey(t *testing.T) {
 func TestModelViewSearchMode(t *testing.T) {
 	historyManager, cleanup := setupTestHistoryManager(t)
 	defer cleanup()
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Switch to search mode
 	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "/"}))
@@ -600,7 +600,7 @@ func TestModelViewFilteredStatus(t *testing.T) {
 	historyManager.AddItem("hello world")
 	historyManager.AddItem("hello go")
 	historyManager.AddItem("foo bar")
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Apply a filter directly
 	model.filterItems("hello")
@@ -617,7 +617,7 @@ func TestModelViewNoResultsMessage(t *testing.T) {
 	defer cleanup()
 
 	historyManager.AddItem("hello world")
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// Apply a filter that matches nothing
 	model.filterItems("zzznomatch")
@@ -660,7 +660,7 @@ func TestModelPinKey(t *testing.T) {
 	defer cleanup()
 
 	historyManager.AddItem("item to pin")
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "p"}))
 	model = newModel.(Model)
@@ -691,7 +691,7 @@ func TestModelDeletePinnedItemConfirmY(t *testing.T) {
 	if err := historyManager.TogglePin(0); err != nil {
 		t.Fatalf("TogglePin: %v", err)
 	}
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	// 'd' on a pinned item should set confirmDelete, not delete immediately
 	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "d"}))
@@ -730,7 +730,7 @@ func TestModelDeletePinnedItemConfirmN(t *testing.T) {
 	if err := historyManager.TogglePin(0); err != nil {
 		t.Fatalf("TogglePin: %v", err)
 	}
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "d"}))
 	model = newModel.(Model)
@@ -756,7 +756,7 @@ func TestModelDeletePinnedItemConfirmEsc(t *testing.T) {
 	if err := historyManager.TogglePin(0); err != nil {
 		t.Fatalf("TogglePin: %v", err)
 	}
-	model := NewModel(historyManager, "dev")
+	model := NewModel(historyManager)
 
 	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "d"}))
 	model = newModel.(Model)
