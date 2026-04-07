@@ -13,7 +13,7 @@ import (
 
 const (
 	ConfigDir  = ".clippy"
-	DBFileName = "clippy.automerge"
+	DBFileName = "clippy.db"
 )
 
 // Manager handles clipboard history storage and management
@@ -21,7 +21,7 @@ type Manager struct {
 	items    []ClipboardHistory
 	hashes   map[string]struct{}
 	lastHash string
-	dbClient db.DBClient
+	dbClient db.DBClient // nil for in-memory managers
 	dbPath   string
 }
 
@@ -59,7 +59,7 @@ func NewManagerWithPath(dbPath string) (*Manager, error) {
 		return nil, fmt.Errorf("error creating directory: %w", err)
 	}
 
-	dbClient, err := db.NewAutomergeClient(dbPath)
+	dbClient, err := db.New(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("error opening database: %w", err)
 	}

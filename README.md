@@ -7,7 +7,7 @@ A lightweight terminal-based clipboard history manager, built with Go and the Bu
 ## Features
 
 - 📋 **Automatic Clipboard Monitoring** - Continuously tracks clipboard changes in real-time
-- 🕒 **Persistent History** - Saves clipboard history to disk across sessions using Automerge
+- 🕒 **Persistent History** - Saves clipboard history to disk across sessions using SQLite
 - 🎯 **Duplicate Detection** - Automatically filters out duplicate entries using SHA-256 hashing
 - 📌 **Pin Items** - Pin important entries to keep them at the top of your history
 - ⌨️ **Keyboard Navigation** - Navigate through history with vim-style keybindings
@@ -87,7 +87,7 @@ Clippy monitors your system clipboard every 2 seconds and automatically captures
 
 1. **Hashed** using SHA-256 to detect duplicates
 2. **Timestamped** for chronological organization
-3. **Persisted** to `~/.clippy/clippy.automerge` using the Automerge CRDT format
+3. **Persisted** to `~/.clippy/clippy.db` using SQLite
 4. **Displayed** in a scrollable terminal interface
 
 The application shows a preview of each clipboard entry (truncated to 60 characters) and replaces newlines with spaces for clean display.
@@ -105,7 +105,7 @@ clippy/
 │   └── main.go           # Demo runner
 ├── internal/
 │   ├── db/               # Persistence layer
-│   │   └── automerge_client.go  # Automerge CRDT backend
+│   │   └── db.go         # SQLite backend
 │   ├── history/          # Clipboard history management
 │   │   ├── history.go    # History manager implementation
 │   │   ├── types.go      # Data structures and types
@@ -132,11 +132,11 @@ clippy/
 - [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components for Bubble Tea
 - [Lipgloss](https://github.com/charmbracelet/lipgloss) - TUI styling
 - [clipboard](https://github.com/atotto/clipboard) - Cross-platform clipboard access
-- [automerge-go](https://github.com/automerge/automerge-go) - CRDT-based persistence (lays the groundwork for future cross-device sync)
+- [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) - Pure Go SQLite driver (no CGO required)
 
 ## Privacy & Security
 
-- Clipboard history is stored locally in `~/.clippy/clippy.automerge`
+- Clipboard history is stored locally in `~/.clippy/clippy.db`
 - No data is transmitted over the network
 - SHA-256 hashes are used only for duplicate detection, not security
 - All clipboard content is stored in plain text locally
