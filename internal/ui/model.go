@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
 	"github.com/bvdwalt/clippy/internal/history"
@@ -20,6 +21,7 @@ type ViewMode int
 const (
 	TableView ViewMode = iota
 	SearchView
+	DetailView
 )
 
 // Model represents the UI state
@@ -27,6 +29,7 @@ type Model struct {
 	historyManager *history.Manager
 	tableManager   *table.Manager
 	textInput      textinput.Model
+	detailViewport viewport.Model
 	fuzzyMatcher   *search.FuzzyMatcher
 	theme          styles.Theme
 	mode           ViewMode
@@ -53,6 +56,9 @@ func NewModel(historyManager *history.Manager, version ...string) Model {
 	tableManager := table.NewManager(tableTheme)
 	fuzzyMatcher := search.NewFuzzyMatcher()
 
+	dv := viewport.New()
+	dv.SoftWrap = true
+
 	v := "dev"
 	if len(version) > 0 {
 		v = version[0]
@@ -62,6 +68,7 @@ func NewModel(historyManager *history.Manager, version ...string) Model {
 		historyManager: historyManager,
 		tableManager:   tableManager,
 		textInput:      ti,
+		detailViewport: dv,
 		fuzzyMatcher:   fuzzyMatcher,
 		theme:          theme,
 		mode:           TableView,
@@ -144,6 +151,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirmHash = ""
 			}
 			return m, cmd
+		}
+
+		// Detail view intercepts keys before global shortcuts so q/esc
+		// close the view instead of quitting the app.
+		if m.mode == DetailView {
+			switch msg.String() {
+			case "esc", "q":
+				m.mode = TableView
+				return m, nil
+			case "c", "enter":
+				if selected := m.tableManager.GetSelectedItem(); selected != nil {
+					if err := clipboard.WriteAll(selected.Item); err != nil {
+						log.Printf("Failed to write to clipboard: %v", err)
+					}
+				}
+				return m, nil
+			default:
+				var vpCmd tea.Cmd
+				m.detailViewport, vpCmd = m.detailViewport.Update(msg)
+				return m, vpCmd
+			}
 		}
 
 		// Global shortcuts that work in any mode
@@ -231,6 +259,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					}
 				}
+			case "v":
+				// Open full-content detail view for selected item
+				if selected := m.tableManager.GetSelectedItem(); selected != nil {
+					m.detailViewport.SetContent(selected.Item)
+					m.detailViewport.GotoTop()
+					m.mode = DetailView
+				}
 			case "r":
 				// Refresh/clear search and reload from database
 				m.mode = TableView
@@ -271,6 +306,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		previewH := max(available/3, 3)
 		m.previewHeight = previewH
 		m.tableManager.SetSize(msg.Width, available-previewH)
+
+		// Detail view fills nearly the whole terminal.
+		// Overhead: title(2) + help(2) + doc margin(4) + detail border/padding(4) = 12,
+		// but we reserve less since the detail view's own render adds title+help too.
+		detailWidth := max(msg.Width-8, 10)
+		detailHeight := max(msg.Height-8, 3)
+		m.detailViewport.SetWidth(detailWidth)
+		m.detailViewport.SetHeight(detailHeight)
+		if m.mode == DetailView {
+			if selected := m.tableManager.GetSelectedItem(); selected != nil {
+				offset := m.detailViewport.YOffset()
+				m.detailViewport.SetContent(selected.Item)
+				m.detailViewport.SetYOffset(offset)
+			}
+		}
 	}
 
 	return m, cmd
@@ -291,6 +341,21 @@ func (m Model) View() tea.View {
 				m.textInput.View(),
 				m.theme.Help.Render("Press Enter to search, Esc to cancel")))
 		content.WriteString(searchBox + "\n")
+		v := tea.NewView(m.theme.Doc.Render(content.String()))
+		v.AltScreen = true
+		v.WindowTitle = "Clippy"
+		return v
+	}
+
+	// Detail view: full, scrollable content of the selected item
+	if m.mode == DetailView {
+		content.WriteString(m.theme.Detail.
+			Width(m.detailViewport.Width()).
+			Height(m.detailViewport.Height()).
+			Render(m.detailViewport.View()) + "\n")
+		help := fmt.Sprintf("Scroll: ↑/k ↓/j pgup/pgdn ctrl+u/ctrl+d • c/Enter copy • esc/q back  (%.0f%%)",
+			m.detailViewport.ScrollPercent()*100)
+		content.WriteString(m.theme.Help.Render(help))
 		v := tea.NewView(m.theme.Doc.Render(content.String()))
 		v.AltScreen = true
 		v.WindowTitle = "Clippy"
@@ -342,7 +407,7 @@ func (m Model) View() tea.View {
 		}
 		help = fmt.Sprintf("Delete pinned item %q? (y/n)", preview)
 	} else {
-		help = "Keys: \u2191/k \u2193/j navigate \u2022 Enter/c copy \u2022 p pin \u2022 d delete \u2022 / search \u2022 r refresh \u2022 q quit"
+		help = "Keys: \u2191/k \u2193/j navigate \u2022 Enter/c copy \u2022 v view \u2022 p pin \u2022 d delete \u2022 / search \u2022 r refresh \u2022 q quit"
 		if m.filtered != nil {
 			help += " \u2022 esc clear search"
 		}

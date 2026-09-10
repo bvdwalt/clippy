@@ -11,6 +11,7 @@ type Theme struct {
 	Help    lipgloss.Style
 	Search  lipgloss.Style
 	Preview lipgloss.Style
+	Detail  lipgloss.Style
 }
 
 func DefaultTheme() Theme {
@@ -33,6 +34,11 @@ func DefaultTheme() Theme {
 			Width(50),
 
 		Preview: lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			Padding(0, 1),
+
+		Detail: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("240")).
 			Padding(0, 1),
