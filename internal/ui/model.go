@@ -287,11 +287,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case TickMsg:
 		// Check for new clipboard content
 		content, err := clipboard.ReadAll()
-		if err == nil && len(content) > 0 {
-			if content != m.lastClipboard {
-				m.historyManager.AddItem(content)
-				m.lastClipboard = content
-			}
+		if err == nil && len(content) > 0 && content != m.lastClipboard {
+			m.historyManager.AddItem(content)
+			m.lastClipboard = content
 			m.updateTable()
 		}
 		return m, Tick()

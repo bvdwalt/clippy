@@ -77,8 +77,10 @@ func (tm *Manager) UpdateRows(items []history.ClipboardHistory) {
 		content = strings.ReplaceAll(content, "\r", " ")
 		content = strings.ReplaceAll(content, "\t", " ")
 
-		if tm.contentWidth > 3 && len(content) > tm.contentWidth {
-			content = content[:tm.contentWidth-3] + "..."
+		if tm.contentWidth > 3 {
+			if runes := []rune(content); len(runes) > tm.contentWidth {
+				content = string(runes[:tm.contentWidth-3]) + "..."
+			}
 		}
 
 		pin := ""

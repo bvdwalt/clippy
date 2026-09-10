@@ -33,7 +33,7 @@ func NewManager() (*Manager, error) {
 	}
 
 	configDir := filepath.Join(homeDir, ConfigDir)
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return nil, fmt.Errorf("error creating config directory: %w", err)
 	}
 
@@ -55,7 +55,7 @@ func NewInMemoryManager() *Manager {
 // This is useful for testing with isolated databases
 func NewManagerWithPath(dbPath string) (*Manager, error) {
 	dir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("error creating directory: %w", err)
 	}
 

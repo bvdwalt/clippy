@@ -28,7 +28,7 @@ go test ./internal/db/...
 
 Clippy is a terminal-based clipboard history manager. The data flow is:
 
-1. **Clipboard polling** — `ui.Tick()` fires every 2 seconds, the `Model.Update()` handler reads the system clipboard via `atotto/clipboard` and calls `history.Manager.AddItem()`
+1. **Clipboard polling** — `ui.Tick()` fires every 500ms, the `Model.Update()` handler reads the system clipboard via `atotto/clipboard` and calls `history.Manager.AddItem()`
 2. **Persistence** — `internal/db` wraps a SQLite database (`~/.clippy/clippy.db`) using `modernc.org/sqlite` (pure Go, no CGO). Items are stored with SHA-256 hash, content, timestamp, and pinned state. Pinned items sort to the top; ties broken by timestamp ascending.
 3. **Deduplication** — `Manager` maintains an in-memory hash set; `AddItem` skips content already seen in this session or in the document.
 4. **TUI** — Built with Bubble Tea. `ui.Model` is the top-level Bubble Tea model. It delegates table rendering to `ui/table.Manager` and fuzzy search to `internal/search.FuzzyMatcher`.

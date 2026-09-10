@@ -1,6 +1,7 @@
 package search
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/bvdwalt/clippy/internal/history"
@@ -49,7 +50,10 @@ func (f *FuzzyMatcher) Search(items []history.ClipboardHistory, query string) []
 
 // fuzzyMatch implements fuzzy matching similar to fzf
 // Returns a score > 0 if the query matches, 0 if no match
-func (f *FuzzyMatcher) fuzzyMatch(text, query string) int {
+func (f *FuzzyMatcher) fuzzyMatch(textStr, queryStr string) int {
+	text := []rune(textStr)
+	query := []rune(queryStr)
+
 	if len(query) == 0 {
 		return 1
 	}
@@ -84,7 +88,7 @@ func (f *FuzzyMatcher) fuzzyMatch(text, query string) int {
 					positionScore += 15
 				}
 
-				if textIdx > 0 && isLower(rune(text[textIdx-1])) && isUpper(rune(text[textIdx])) {
+				if textIdx > 0 && isLower(text[textIdx-1]) && isUpper(text[textIdx]) {
 					positionScore += 10
 				}
 
@@ -113,17 +117,13 @@ func (f *FuzzyMatcher) fuzzyMatch(text, query string) int {
 }
 
 func (f *FuzzyMatcher) sortByScore(matches []ScoredItem) {
-	for i := 0; i < len(matches)-1; i++ {
-		for j := i + 1; j < len(matches); j++ {
-			if matches[j].Score > matches[i].Score {
-				matches[i], matches[j] = matches[j], matches[i]
-			}
-		}
-	}
+	sort.SliceStable(matches, func(i, j int) bool {
+		return matches[i].Score > matches[j].Score
+	})
 }
 
-func isWordBoundary(c byte) bool {
-	return c == ' ' || c == '-' || c == '_' || c == '.' || c == '/' || c == '\\'
+func isWordBoundary(r rune) bool {
+	return r == ' ' || r == '-' || r == '_' || r == '.' || r == '/' || r == '\\'
 }
 
 func isLower(r rune) bool {

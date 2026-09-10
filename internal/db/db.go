@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -33,6 +34,16 @@ type Client struct {
 
 // New creates a new database client with the given database path
 func New(dbPath string) (*Client, error) {
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_RDWR, 0600)
+		if err != nil {
+			return nil, fmt.Errorf("error creating database file: %w", err)
+		}
+		if err := f.Close(); err != nil {
+			return nil, fmt.Errorf("error creating database file: %w", err)
+		}
+	}
+
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("error opening database: %w", err)
