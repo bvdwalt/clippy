@@ -11,6 +11,7 @@ A lightweight terminal-based clipboard history manager, built with Go and the Bu
 - 🎯 **Duplicate Detection** - Automatically filters out duplicate entries using SHA-256 hashing
 - 📌 **Pin Items** - Pin important entries to keep them at the top of your history
 - ⌨️ **Keyboard Navigation** - Navigate through history with vim-style keybindings
+- 🔍 **Full-Content Detail View** - Scroll through an entry's full content with the keyboard, no mouse required
 - 📱 **Clean Terminal UI** - Beautiful, responsive interface that fits your workflow
 - 🔄 **Instant Copy** - Copy any historical item back to clipboard with a single keypress
 
@@ -68,6 +69,7 @@ just run
 | `↑` / `k` | Navigate up through history |
 | `↓` / `j` | Navigate down through history |
 | `Enter` / `c` | Copy selected item to clipboard |
+| `v` | Open full-content detail view for selected item |
 | `p` | Toggle pin on selected item |
 | `d` | Delete selected item (prompts for confirmation if pinned) |
 | `/` | Enter search mode |
@@ -80,6 +82,12 @@ When you press `/`, you'll enter search mode where you can:
 - Type to filter clipboard history using fuzzy search (similar to fzf)
 - Press `Enter` to apply the search filter
 - Press `Esc` to cancel and return to normal view
+
+#### Detail View
+The table and preview pane only show a truncated snippet of each entry. Press `v` to open a fullscreen view of the selected entry's full, untruncated content:
+- Scroll with `↑`/`k`, `↓`/`j`, `PgUp`/`PgDn`, or `Ctrl+U`/`Ctrl+D` — no mouse or trackpad scroll required (useful in terminal multiplexers like zellij that capture scroll for pane navigation)
+- Press `Enter` / `c` to copy the full content to clipboard
+- Press `Esc` / `q` to return to the table
 
 ## How It Works
 
@@ -129,7 +137,7 @@ clippy/
 ## Dependencies
 
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) - Terminal UI framework
-- [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components for Bubble Tea
+- [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components for Bubble Tea (table, textinput, viewport)
 - [Lipgloss](https://github.com/charmbracelet/lipgloss) - TUI styling
 - [clipboard](https://github.com/atotto/clipboard) - Cross-platform clipboard access
 - [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) - Pure Go SQLite driver (no CGO required)
