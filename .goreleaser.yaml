@@ -38,10 +38,10 @@ homebrew_casks:
     homepage: "https://github.com/bvdwalt/clippy"
     description: "Terminal clipboard history manager"
     license: "MIT"
-    hooks:
-      post:
-        install: |
-          system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/clippy"]
+    custom_block: |
+      postflight_steps do
+        run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{" }}staged_path{{ "}}" }}/clippy"]
+      end
 
 checksum:
   name_template: checksums.txt
