@@ -10,6 +10,13 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// Startup VACUUM runs only when free pages are at least this share of the file
+// and at least this many pages, so normal startups skip the rewrite
+const (
+	vacuumMinFreeRatio = 0.25
+	vacuumMinFreePages = 256
+)
+
 // ClipboardEntry represents a clipboard entry in the persistence layer
 type ClipboardEntry struct {
 	Content   string
@@ -58,7 +65,29 @@ func New(dbPath string) (*Client, error) {
 		return nil, fmt.Errorf("error initializing database: %w", err)
 	}
 
+	client.vacuumIfFragmented()
+
 	return client, nil
+}
+
+// vacuumIfFragmented reclaims free pages left by deletes. Best-effort: failures
+// are logged and never block startup
+func (c *Client) vacuumIfFragmented() {
+	var freePages, totalPages int
+	if err := c.db.QueryRow("PRAGMA freelist_count").Scan(&freePages); err != nil {
+		log.Printf("Warning: could not read freelist_count: %v", err)
+		return
+	}
+	if err := c.db.QueryRow("PRAGMA page_count").Scan(&totalPages); err != nil {
+		log.Printf("Warning: could not read page_count: %v", err)
+		return
+	}
+	if freePages < vacuumMinFreePages || float64(freePages) < vacuumMinFreeRatio*float64(totalPages) {
+		return
+	}
+	if _, err := c.db.Exec("VACUUM"); err != nil {
+		log.Printf("Warning: vacuum failed: %v", err)
+	}
 }
 
 // initialize creates the necessary tables and runs migrations

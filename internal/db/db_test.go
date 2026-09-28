@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -274,5 +275,100 @@ func TestMigrate_AddsPinnedColumn(t *testing.T) {
 	}
 	if entries[0].Pinned {
 		t.Error("expected Pinned=false for migrated entry")
+	}
+}
+
+// freelistPages reads the free page count directly from the file at path
+func freelistPages(t *testing.T, path string) int {
+	t.Helper()
+	conn, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Logf("close: %v", err)
+		}
+	}()
+	var n int
+	if err := conn.QueryRow("PRAGMA freelist_count").Scan(&n); err != nil {
+		t.Fatalf("freelist_count: %v", err)
+	}
+	return n
+}
+
+// fillAndDelete inserts total 8KB entries, then deletes the first deleted of them
+func fillAndDelete(t *testing.T, client *Client, total, deleted int) {
+	t.Helper()
+	payload := string(make([]byte, 8192))
+	for i := range total {
+		entry := makeEntry(fmt.Sprintf("%d%s", i, payload))
+		if err := client.Insert(entry); err != nil {
+			t.Fatalf("Insert: %v", err)
+		}
+	}
+	for i := range deleted {
+		if err := client.Delete(fmt.Sprintf("%d%s-hash", i, payload)); err != nil {
+			t.Fatalf("Delete: %v", err)
+		}
+	}
+}
+
+func TestNew_VacuumsFragmentedDB(t *testing.T) {
+	client, path, cleanup := setupClient(t)
+	defer cleanup()
+
+	fillAndDelete(t, client, 400, 400)
+	if err := client.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+
+	reopened, err := New(path)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	if err := reopened.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	if n := freelistPages(t, path); n != 0 {
+		t.Errorf("expected empty freelist after vacuum, got %d pages", n)
+	}
+	after, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if after.Size() >= before.Size() {
+		t.Errorf("expected file to shrink, before=%d after=%d", before.Size(), after.Size())
+	}
+}
+
+func TestNew_SkipsVacuumBelowThreshold(t *testing.T) {
+	client, path, cleanup := setupClient(t)
+	defer cleanup()
+
+	fillAndDelete(t, client, 400, 10)
+	if err := client.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	before := freelistPages(t, path)
+	if before == 0 {
+		t.Fatal("expected some free pages after deletes")
+	}
+
+	reopened, err := New(path)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	if err := reopened.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	if after := freelistPages(t, path); after != before {
+		t.Errorf("expected freelist untouched, before=%d after=%d", before, after)
 	}
 }
