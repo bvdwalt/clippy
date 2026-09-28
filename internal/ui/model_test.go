@@ -772,3 +772,28 @@ func TestModelDeletePinnedItemConfirmEsc(t *testing.T) {
 	}
 	_ = model
 }
+
+func TestModelDeletePinnedItemPromptTruncatesUnicode(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+
+	// 'é' is 2 bytes and straddles the 40-byte boundary
+	content := strings.Repeat("a", 39) + "éxyz" + strings.Repeat("b", 20)
+	historyManager.AddItem(content)
+	if err := historyManager.TogglePin(0); err != nil {
+		t.Fatalf("TogglePin: %v", err)
+	}
+	model := NewModel(historyManager)
+
+	newModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Text: "d"}))
+	model = newModel.(Model)
+
+	view := model.View()
+	if contains(view, `\xc3`) {
+		t.Error("expected prompt not to split a multi-byte character")
+	}
+	expected := strings.Repeat("a", 39) + "é..."
+	if !contains(view, expected) {
+		t.Errorf("expected prompt to contain %q", expected)
+	}
+}

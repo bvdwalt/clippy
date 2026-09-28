@@ -399,8 +399,8 @@ func (m Model) View() tea.View {
 		preview := ""
 		if item != nil {
 			preview = item.Item
-			if len(preview) > 40 {
-				preview = preview[:40] + "..."
+			if runes := []rune(preview); len(runes) > 40 {
+				preview = string(runes[:40]) + "..."
 			}
 		}
 		help = fmt.Sprintf("Delete pinned item %q? (y/n)", preview)
