@@ -91,7 +91,7 @@ The table and preview pane only show a truncated snippet of each entry. Press `v
 
 ## How It Works
 
-Clippy monitors your system clipboard every 2 seconds and automatically captures any new content. Each clipboard entry is:
+Clippy monitors your system clipboard every 500ms and automatically captures any new content. Each clipboard entry is:
 
 1. **Hashed** using SHA-256 to detect duplicates
 2. **Timestamped** for chronological organization
