@@ -148,6 +148,7 @@ clippy/
 - No data is transmitted over the network
 - SHA-256 hashes are used only for duplicate detection, not security
 - All clipboard content is stored in plain text locally
+- Items that password managers mark as secret are not recorded: `org.nspasteboard.ConcealedType` / `TransientType` on macOS, `x-kde-passwordManagerHint` on Linux (needs `wl-paste` or `xclip`). Secrets copied from apps that don't set these markers are still captured
 
 ## Contributing
 

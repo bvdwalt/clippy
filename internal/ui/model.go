@@ -26,21 +26,23 @@ const (
 
 // Model represents the UI state
 type Model struct {
-	historyManager *history.Manager
-	tableManager   *table.Manager
-	textInput      textinput.Model
-	detailViewport viewport.Model
-	fuzzyMatcher   *search.FuzzyMatcher
-	theme          styles.Theme
-	mode           ViewMode
-	filtered       []history.ClipboardHistory
-	lastClipboard  string
-	height         int
-	width          int
-	previewHeight  int
-	confirmDelete  bool   // waiting for y/n confirmation on a pinned item
-	confirmHash    string // hash of the item pending delete confirmation
-	version        string
+	historyManager  *history.Manager
+	tableManager    *table.Manager
+	textInput       textinput.Model
+	detailViewport  viewport.Model
+	fuzzyMatcher    *search.FuzzyMatcher
+	theme           styles.Theme
+	mode            ViewMode
+	filtered        []history.ClipboardHistory
+	source          clipboardSource
+	lastClipboard   string
+	lastChangeCount int
+	height          int
+	width           int
+	previewHeight   int
+	confirmDelete   bool   // waiting for y/n confirmation on a pinned item
+	confirmHash     string // hash of the item pending delete confirmation
+	version         string
 }
 
 // NewModel creates a new UI model. An optional version string may be passed;
@@ -65,14 +67,16 @@ func NewModel(historyManager *history.Manager, version ...string) Model {
 	}
 
 	m := Model{
-		historyManager: historyManager,
-		tableManager:   tableManager,
-		textInput:      ti,
-		detailViewport: dv,
-		fuzzyMatcher:   fuzzyMatcher,
-		theme:          theme,
-		mode:           TableView,
-		version:        v,
+		historyManager:  historyManager,
+		tableManager:    tableManager,
+		textInput:       ti,
+		detailViewport:  dv,
+		fuzzyMatcher:    fuzzyMatcher,
+		source:          systemClipboard{},
+		lastChangeCount: -1,
+		theme:           theme,
+		mode:            TableView,
+		version:         v,
 	}
 
 	m.updateTable()
@@ -285,12 +289,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case TickMsg:
-		// Check for new clipboard content
-		content, err := clipboard.ReadAll()
-		if err == nil && len(content) > 0 && content != m.lastClipboard {
-			m.historyManager.AddItem(content)
+		count, hasCount := m.source.ChangeCount()
+		if hasCount && count == m.lastChangeCount {
+			return m, Tick()
+		}
+		content, err := m.source.ReadAll()
+		if err != nil {
+			return m, Tick()
+		}
+		if hasCount {
+			m.lastChangeCount = count
+		}
+		if len(content) > 0 && content != m.lastClipboard {
 			m.lastClipboard = content
-			m.updateTable()
+			if !m.source.IsConcealed() {
+				m.historyManager.AddItem(content)
+				m.updateTable()
+			}
 		}
 		return m, Tick()
 
