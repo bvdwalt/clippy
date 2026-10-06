@@ -797,3 +797,24 @@ func TestModelDeletePinnedItemPromptTruncatesUnicode(t *testing.T) {
 		t.Errorf("expected prompt to contain %q", expected)
 	}
 }
+
+func TestSelectedItemSurvivesNavigation(t *testing.T) {
+	historyManager, cleanup := setupTestHistoryManager(t)
+	defer cleanup()
+	model := NewModel(historyManager)
+
+	historyManager.AddItem("first")
+	historyManager.AddItem("second")
+	model.UpdateTable()
+
+	updatedModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyDown}))
+	model = updatedModel.(Model)
+
+	selected := model.tableManager.GetSelectedItem()
+	if selected == nil {
+		t.Fatal("Expected a selected item after navigating, got nil")
+	}
+	if !contains(model.View().Content, selected.Item) {
+		t.Errorf("Expected preview/view to contain %q", selected.Item)
+	}
+}

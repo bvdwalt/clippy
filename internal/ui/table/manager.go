@@ -51,9 +51,7 @@ func (tm *Manager) GetTable() *table.Model {
 }
 
 func (tm *Manager) SetTable(t *table.Model) {
-	// When replacing the underlying table, clear lastItems to avoid mismatches
 	tm.table = t
-	tm.lastItems = nil
 }
 
 // UpdateRows updates the table with clipboard history items
