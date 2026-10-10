@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/bvdwalt/clippy/internal/history"
 	"regexp"
 	"strings"
 	"testing"
@@ -816,5 +817,20 @@ func TestSelectedItemSurvivesNavigation(t *testing.T) {
 	}
 	if !contains(model.View().Content, selected.Item) {
 		t.Errorf("Expected preview/view to contain %q", selected.Item)
+	}
+}
+
+func TestModelTickPrunesExpiredItems(t *testing.T) {
+	historyManager := history.NewInMemoryManager()
+	historyManager.SetTTL(time.Hour)
+	historyManager.AddItem("stale")
+	historyManager.GetItems()[0].TimeStamp = time.Now().Add(-2 * time.Hour)
+
+	model := NewModel(historyManager)
+	model.source = &fakeClipboard{}
+	tick(t, model)
+
+	if historyManager.Count() != 0 {
+		t.Errorf("Expected expired item pruned on tick, got %d items", historyManager.Count())
 	}
 }

@@ -1,6 +1,7 @@
 package history
 
 import (
+	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -475,5 +476,102 @@ func TestNewManager_UsesHomeDir(t *testing.T) {
 	}()
 	if manager == nil {
 		t.Fatal("NewManager() returned nil")
+	}
+}
+
+func TestPruneExpired(t *testing.T) {
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
+	manager.SetTTL(24 * time.Hour)
+
+	now := time.Now()
+	manager.AddItem("old")
+	manager.AddItem("old-pinned")
+	manager.AddItem("fresh")
+	manager.items[0].TimeStamp = now.Add(-25 * time.Hour)
+	manager.items[1].TimeStamp = now.Add(-25 * time.Hour)
+	if err := manager.TogglePin(1); err != nil {
+		t.Fatalf("TogglePin: %v", err)
+	}
+	// persist the backdated timestamps
+	for _, it := range manager.items {
+		if it.Item == "old" || it.Item == "old-pinned" {
+			backdate(t, manager, it.Hash, now.Add(-25*time.Hour))
+		}
+	}
+
+	if removed := manager.PruneExpired(now); removed != 1 {
+		t.Fatalf("removed = %d, want 1", removed)
+	}
+	if manager.Count() != 2 {
+		t.Fatalf("Count = %d, want 2", manager.Count())
+	}
+	for _, it := range manager.GetItems() {
+		if it.Item == "old" {
+			t.Errorf("expired item still present")
+		}
+	}
+	// hash set cleared, so the same content can be copied again
+	if !manager.AddItem("old") {
+		t.Errorf("expected expired content to be re-addable")
+	}
+}
+
+func TestPruneExpiredDisabledWhenTTLZero(t *testing.T) {
+	manager := NewInMemoryManager()
+	manager.AddItem("old")
+	manager.items[0].TimeStamp = time.Now().Add(-1000 * time.Hour)
+
+	if removed := manager.PruneExpired(time.Now()); removed != 0 {
+		t.Errorf("removed = %d, want 0 with TTL disabled", removed)
+	}
+}
+
+func TestPruneExpiredInMemory(t *testing.T) {
+	manager := NewInMemoryManager()
+	manager.SetTTL(time.Hour)
+	manager.AddItem("old")
+	manager.items[0].TimeStamp = time.Now().Add(-2 * time.Hour)
+
+	if removed := manager.PruneExpired(time.Now()); removed != 1 {
+		t.Errorf("removed = %d, want 1", removed)
+	}
+}
+
+func TestParseTTL(t *testing.T) {
+	tests := []struct {
+		in      string
+		want    time.Duration
+		wantErr bool
+	}{
+		{"", DefaultTTL, false},
+		{"48h", 48 * time.Hour, false},
+		{"90m", 90 * time.Minute, false},
+		{"0", 0, false},
+		{"abc", 0, true},
+		{"-5h", 0, true},
+	}
+	for _, tt := range tests {
+		got, err := ParseTTL(tt.in)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("ParseTTL(%q) err = %v, wantErr %v", tt.in, err, tt.wantErr)
+			continue
+		}
+		if !tt.wantErr && got != tt.want {
+			t.Errorf("ParseTTL(%q) = %v, want %v", tt.in, got, tt.want)
+		}
+	}
+}
+
+// backdate rewrites an entry's timestamp directly in the database
+func backdate(t *testing.T, m *Manager, hash string, ts time.Time) {
+	t.Helper()
+	conn, err := sql.Open("sqlite", m.dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+	if _, err := conn.Exec("UPDATE clipboard_history SET timestamp = ? WHERE hash = ?", ts, hash); err != nil {
+		t.Fatalf("backdate: %v", err)
 	}
 }

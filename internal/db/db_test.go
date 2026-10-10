@@ -372,3 +372,41 @@ func TestNew_SkipsVacuumBelowThreshold(t *testing.T) {
 		t.Errorf("expected freelist untouched, before=%d after=%d", before, after)
 	}
 }
+
+func TestDeleteExpired(t *testing.T) {
+	client, _, cleanup := setupClient(t)
+	defer cleanup()
+
+	now := time.Date(2024, 1, 2, 12, 0, 0, 0, time.UTC)
+	entries := []ClipboardEntry{
+		{Content: "old", Hash: "old", Timestamp: now.Add(-25 * time.Hour)},
+		{Content: "old-pinned", Hash: "old-pinned", Timestamp: now.Add(-48 * time.Hour), Pinned: true},
+		{Content: "fresh", Hash: "fresh", Timestamp: now.Add(-1 * time.Hour)},
+	}
+	for _, e := range entries {
+		if err := client.Insert(e); err != nil {
+			t.Fatalf("Insert: %v", err)
+		}
+	}
+
+	n, err := client.DeleteExpired(now.Add(-24 * time.Hour))
+	if err != nil {
+		t.Fatalf("DeleteExpired: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("deleted = %d, want 1", n)
+	}
+
+	got, err := client.LoadAll()
+	if err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("remaining = %d, want 2", len(got))
+	}
+	for _, e := range got {
+		if e.Hash == "old" {
+			t.Errorf("expired unpinned entry still present")
+		}
+	}
+}

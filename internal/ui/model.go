@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
@@ -43,7 +44,11 @@ type Model struct {
 	confirmDelete   bool   // waiting for y/n confirmation on a pinned item
 	confirmHash     string // hash of the item pending delete confirmation
 	version         string
+	lastPrune       time.Time // last TTL prune, throttles pruning to pruneInterval
 }
+
+// pruneInterval is how often expired entries are purged while running
+const pruneInterval = time.Minute
 
 // NewModel creates a new UI model. An optional version string may be passed;
 // it defaults to "dev" when omitted.
@@ -289,6 +294,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case TickMsg:
+		if now := time.Time(msg); now.Sub(m.lastPrune) >= pruneInterval {
+			m.lastPrune = now
+			if m.historyManager.PruneExpired(now) > 0 {
+				m.updateTable()
+			}
+		}
 		count, hasCount := m.source.ChangeCount()
 		if hasCount && count == m.lastChangeCount {
 			return m, Tick()

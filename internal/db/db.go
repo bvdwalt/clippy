@@ -31,6 +31,7 @@ type DBClient interface {
 	Delete(hash string) error
 	LoadAll() ([]ClipboardEntry, error)
 	SetPinned(hash string, pinned bool) error
+	DeleteExpired(cutoff time.Time) (int64, error)
 	Close() error
 }
 
@@ -222,4 +223,13 @@ func (c *Client) SetPinned(hash string, pinned bool) error {
 		return fmt.Errorf("clip with hash %s not found", hash)
 	}
 	return nil
+}
+
+// DeleteExpired removes unpinned entries older than cutoff and returns how many were removed
+func (c *Client) DeleteExpired(cutoff time.Time) (int64, error) {
+	res, err := c.db.Exec("DELETE FROM clipboard_history WHERE pinned = 0 AND timestamp < ?", cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
