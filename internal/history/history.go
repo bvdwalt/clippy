@@ -3,6 +3,7 @@ package history
 import (
 	"crypto/sha256"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,6 +15,9 @@ import (
 const (
 	ConfigDir  = ".clippy"
 	DBFileName = "clippy.db"
+
+	// DefaultTTL is how long unpinned entries are kept
+	DefaultTTL = 24 * time.Hour
 )
 
 // Manager handles clipboard history storage and management
@@ -23,6 +27,7 @@ type Manager struct {
 	lastHash string
 	dbClient db.DBClient // nil for in-memory managers
 	dbPath   string
+	ttl      time.Duration // 0 disables expiry
 }
 
 // NewManager creates a new history manager
@@ -210,4 +215,56 @@ func (m *Manager) TogglePin(index int) error {
 		return nil
 	}
 	return fmt.Errorf("invalid index: %d", index)
+}
+
+// ParseTTL parses a TTL setting such as "24h" or "90m". An empty value yields
+// DefaultTTL and "0" disables expiry.
+func ParseTTL(s string) (time.Duration, error) {
+	if s == "" {
+		return DefaultTTL, nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, fmt.Errorf("invalid TTL %q: %w", s, err)
+	}
+	if d < 0 {
+		return 0, fmt.Errorf("invalid TTL %q: must not be negative", s)
+	}
+	return d, nil
+}
+
+// SetTTL sets how long unpinned entries are kept. Zero disables expiry.
+func (m *Manager) SetTTL(ttl time.Duration) {
+	m.ttl = ttl
+}
+
+// PruneExpired removes unpinned items older than the TTL and returns how many were removed
+func (m *Manager) PruneExpired(now time.Time) int {
+	if m.ttl <= 0 {
+		return 0
+	}
+	cutoff := now.Add(-m.ttl)
+
+	if m.dbClient != nil {
+		if _, err := m.dbClient.DeleteExpired(cutoff); err != nil {
+			log.Printf("Warning: could not delete expired entries: %v", err)
+			return 0
+		}
+	}
+
+	kept := m.items[:0]
+	removed := 0
+	for _, item := range m.items {
+		if !item.Pinned && item.TimeStamp.Before(cutoff) {
+			delete(m.hashes, item.Hash)
+			if m.lastHash == item.Hash {
+				m.lastHash = ""
+			}
+			removed++
+			continue
+		}
+		kept = append(kept, item)
+	}
+	m.items = kept
+	return removed
 }
