@@ -575,3 +575,41 @@ func backdate(t *testing.T, m *Manager, hash string, ts time.Time) {
 		t.Fatalf("backdate: %v", err)
 	}
 }
+
+func TestTogglePinDropsItemMissingFromDB(t *testing.T) {
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
+
+	manager.AddItem("stale")
+	manager.AddItem("live")
+	if err := manager.dbClient.Delete(manager.items[0].Hash); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	if err := manager.TogglePin(0); err != nil {
+		t.Fatalf("TogglePin: %v", err)
+	}
+	if manager.Count() != 1 || manager.items[0].Item != "live" {
+		t.Errorf("stale item not dropped: %+v", manager.items)
+	}
+	if !manager.AddItem("stale") {
+		t.Errorf("expected dropped content to be re-addable")
+	}
+}
+
+func TestDeleteItemDropsItemMissingFromDB(t *testing.T) {
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
+
+	manager.AddItem("stale")
+	if err := manager.dbClient.Delete(manager.items[0].Hash); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	if !manager.DeleteItem(0) {
+		t.Errorf("DeleteItem should succeed for a row already gone from the DB")
+	}
+	if manager.Count() != 0 {
+		t.Errorf("Count = %d, want 0", manager.Count())
+	}
+}

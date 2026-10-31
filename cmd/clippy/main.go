@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -35,6 +36,12 @@ func main() {
 	}
 	historyManager.SetTTL(ttl)
 	historyManager.PruneExpired(time.Now())
+
+	// stderr output would be drawn over the TUI
+	if logFile, err := os.OpenFile(filepath.Join(filepath.Dir(historyManager.DBPath()), "clippy.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600); err == nil {
+		defer func() { _ = logFile.Close() }()
+		log.SetOutput(logFile)
+	}
 
 	initialModel := ui.NewModel(historyManager, version)
 	program := tea.NewProgram(initialModel)
