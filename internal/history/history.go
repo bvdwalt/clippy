@@ -2,6 +2,7 @@ package history
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -79,6 +80,11 @@ func NewManagerWithPath(dbPath string) (*Manager, error) {
 	return manager, nil
 }
 
+// DBPath returns the database file path, empty for in-memory managers
+func (m *Manager) DBPath() string {
+	return m.dbPath
+}
+
 // Close closes the database connection
 func (m *Manager) Close() error {
 	if m.dbClient == nil {
@@ -135,16 +141,24 @@ func (m *Manager) DeleteItem(index int) bool {
 		item := m.items[index]
 
 		if m.dbClient != nil {
-			if err := m.dbClient.Delete(item.Hash); err != nil {
+			if err := m.dbClient.Delete(item.Hash); err != nil && !errors.Is(err, db.ErrNotFound) {
 				return false
 			}
 		}
 
-		delete(m.hashes, item.Hash)
-		m.items = append(m.items[:index], m.items[index+1:]...)
+		m.removeAt(index)
 		return true
 	}
 	return false
+}
+
+// removeAt drops the item at index from the list and hash set
+func (m *Manager) removeAt(index int) {
+	delete(m.hashes, m.items[index].Hash)
+	if m.lastHash == m.items[index].Hash {
+		m.lastHash = ""
+	}
+	m.items = append(m.items[:index], m.items[index+1:]...)
 }
 
 // Count returns the number of items in history
@@ -207,6 +221,11 @@ func (m *Manager) TogglePin(index int) error {
 		newPinned := !item.Pinned
 		if m.dbClient != nil {
 			if err := m.dbClient.SetPinned(item.Hash, newPinned); err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					// row was removed by another process; drop the stale entry
+					m.removeAt(index)
+					return nil
+				}
 				return err
 			}
 		}

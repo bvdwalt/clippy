@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -16,6 +17,9 @@ const (
 	vacuumMinFreeRatio = 0.25
 	vacuumMinFreePages = 256
 )
+
+// ErrNotFound is returned when no row matches the given hash
+var ErrNotFound = errors.New("clip not found")
 
 // ClipboardEntry represents a clipboard entry in the persistence layer
 type ClipboardEntry struct {
@@ -174,7 +178,7 @@ func (c *Client) Delete(hash string) error {
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("clip with hash %s not found", hash)
+		return fmt.Errorf("clip with hash %s: %w", hash, ErrNotFound)
 	}
 	return nil
 }
@@ -220,7 +224,7 @@ func (c *Client) SetPinned(hash string, pinned bool) error {
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("clip with hash %s not found", hash)
+		return fmt.Errorf("clip with hash %s: %w", hash, ErrNotFound)
 	}
 	return nil
 }
